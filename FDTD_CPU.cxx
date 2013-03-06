@@ -1,10 +1,11 @@
+
+
 //#define GLEW_STATIC
 //#pragma comment(lib,"glew32.lib")
 //#include <windows.h>
 //#include <gl/glew.h>
 //#include <glut.h>
-//#include <complex>
-
+#include <complex>
 #include <stdio.h>
 #include <iostream>
 #include <cmath>
@@ -12,15 +13,14 @@
 #include <fstream>
 #include <cstdlib>
 #include <fstream>
-//#include <cuda.h>
 //#include "stdafx.h"
 #include <iomanip>
 #include <time.h>
 //#include <cuda_gl_interop.h>
-//#include <cuda_runtime.h>
+
 //#include <cuComplex.h>
 #include <vector>
-//#include <math_functions.h>
+#include <cmath>
 //#include "EasyBMP.h"
 //#include "EasyBMP_DataStructures.h"
 //#include "EasyBMP_VariousBMPutilities.h"
@@ -83,9 +83,6 @@
    	}
 }*/
 	
-bool isnan(float x) {
-    return x != x;
-}
 
 //__constant__ float*dev_Ceze,*dev_Cezhy,*dev_Cezhx,*dev_Cezj,*dev_Jz,*dev_Chyh,*dev_Chxh,*dev_Chyez,*dev_Chxez,*dev_bex,*dev_bey,*dev_aex,*dev_aey,*dev_bmy,*dev_bmx,*dev_amy,*dev_amx,*dev_C_Psi_ezy,
 	//*dev_C_Psi_ezx,*dev_C_Psi_hxy,*dev_C_Psi_hyx;
@@ -130,24 +127,18 @@ struct cuComplex {
 {
 	return sqrt(x.i*x.i + x.r*x.r);
 }
-
-void sincosf(float x, float *s, float *c) {
-    *s = sin(x);
-    *c = cos(x);
-}
-
-
-cuComplex cuexp(cuComplex arg) {
+  cuComplex cuexp(cuComplex arg)
+{
 	cuComplex res(0,0);
 	float s, c;
 	float e = expf(arg.r);
-	sincosf(arg.i,&s,&c);
+	c = cos(arg.i);
+	s = sin(arg.i);
 	res.r = c * e;
 	res.i = s * e;
 	return res;
 
 }
-
  int isOnNF2FFBound(int x, int y)
 {
 	if(x==NF2FFdistfromboundary||x==nx-NF2FFdistfromboundary||y==NF2FFdistfromboundary||y==ny-NF2FFdistfromboundary)
@@ -355,7 +346,8 @@ int CPUgetyfromthreadIdNF2FF(int index)
 
 	float ar;
 	float ky, kx;//k hat
-	sincosf(Phi_inc,&ky,&kx);
+	ky = sin(Phi_inc);
+	kx = cos(Phi_inc);
 
 	ar = (float)timestep*dt-(float)t0-(1/(float)c0)*(ky*y*dx+kx*x*dy-l);
 	//ar = timestep*dt-t0;
@@ -406,22 +398,16 @@ int CPUgetyfromthreadIdNF2FF(int index)
 					buffer_Hx-=Chez*dy*dev_Psi_hxy[dgetCell(x,y-nx+20,nx)];
 				}
 				//__syncthreads();
-				if(isnan(buffer_Hx)) 
-				{
-					dev_Hx[dgetCell(x,y,nx)] = 0.0;
-				}
-				else 
-				{
+				
+				
+				
 					dev_Hx[dgetCell(x,y,nx)] = buffer_Hx;
-				}
+				
 
-				if(isnan(buffer_Hy)) {
-					dev_Hy[dgetCell(x,y,nx)] = 0.0;
-				}
-				else
-				{
+				
+			
 					dev_Hy[dgetCell(x,y,nx)] = buffer_Hy;
-				}
+				
 		
 		//dev_Hx[dgetCell(x,y,nx)] = buffer_Hx;
 		//dev_Hy[dgetCell(x,y,nx)] = buffer_Hy;
@@ -431,7 +417,7 @@ int CPUgetyfromthreadIdNF2FF(int index)
 }
 
 
- void E_field_update(int *i,float*dev_Ez,float*dev_Hy,float*dev_Hx,float*dev_Psi_ezx,float*dev_aex,float*dev_aey,float*dev_bex,float*dev_bey,float*dev_Psi_ezy,float*kex,float*Cezhy,float*Cezhx,float*Ceze,float*Cezeip,float*Cezeic,float*Ezip,float*Ezic)
+ void E_field_update(int *i,float*dev_Ez,float*dev_Hy,float*dev_Hx,float*dev_Psi_ezx,float*dev_aex,float*dev_aey,float*dev_bex,float*dev_bey,float*dev_Psi_ezy,float*kex,float*Cezhy,float*Cezhx,float*Ceze,float*Cezeip,float*Cezeic)
 {
 	for( int x = 0; x<(nx+1);x++)
 	{
@@ -454,20 +440,14 @@ int CPUgetyfromthreadIdNF2FF(int index)
 				{
 					if(isscattering)
 					{
-						if(!isPW)
-						{
-						buffer_Ez = Ceze[dgetCell(x,y,nx+1)]*dev_Ez[dgetCell(x,y,nx+1)]+Cezhy[dgetCell(x,y,nx+1)]*(dev_Hy[dgetCell(x,y,nx)]-dev_Hy[dgetCell(x-1,y,nx)])
-						-Cezhx[dgetCell(x,y,nx+1)]*(dev_Hx[dgetCell(x,y,nx)]-dev_Hx[dgetCell(x,y-1,nx)])
-						+Cezeic[dgetCell(x,y,nx+1)]*Ezic[dgetCell(x,y,nx+1)]
-						+Cezeip[dgetCell(x,y,nx+1)]*Ezip[dgetCell(x,y,nx+1)];
-						}
-						else
-						{
+						
+						
+						
 						buffer_Ez = Ceze[dgetCell(x,y,nx+1)]*dev_Ez[dgetCell(x,y,nx+1)]+Cezhy[dgetCell(x,y,nx+1)]*(dev_Hy[dgetCell(x,y,nx)]-dev_Hy[dgetCell(x-1,y,nx)])
 						-Cezhx[dgetCell(x,y,nx+1)]*(dev_Hx[dgetCell(x,y,nx)]-dev_Hx[dgetCell(x,y-1,nx)])
 						+Cezeic[dgetCell(x,y,nx+1)]*fwf((float)(*i)+0.5,x,y,0,l0)
 						+Cezeip[dgetCell(x,y,nx+1)]*fwf((float)(*i)-0.5,x,y,0,l0);
-						}
+						
 					}
 					else
 					{
@@ -836,11 +816,8 @@ void Psi_hxy_init(float*Psi_hxy);
 void CJ_Init(cuComplex * cjzyn,int size);
  void scattered_parameter_init(float*eps_r_z,float*sigma_e_z,float*Cezeic,float*Cezeip);
 
-
 double FDTD_CPU(const vector<double> &arguments)
 {
-    cout <<"calling fdtd cpu" << endl;
-
 	//BMP Output_Image;
 	//BMP Scattered_Field_snapshot;
 	//Output_Image.SetSize((nx+1),(ny+1));
@@ -850,53 +827,29 @@ double FDTD_CPU(const vector<double> &arguments)
 	//RGBApixel Temp;
 	//string outputfilename;
 	//ebmpBYTE StepSize;
-	vector<double> double_image;
-	for(int ind = 0; ind<81; ind++)
-	{
-		double_image.push_back(20.0);
-	}
-	for(int ind = 81; ind<81*2; ind++)
-	{
-		double_image.push_back(0.0);
-	}
+
 	vector<float> image;
 	for(int lerp = 0; lerp<81;lerp++)//This is setting the material parameters of the optimization cells.
 	{
-		//image.push_back((float)arguments.at(lerp));
-		image.push_back((float)double_image.at(lerp));
+		image.push_back((float)arguments.at(lerp));
 	}
 	for(int lerp = 81; lerp<81*2;lerp++)
 	{
-		//image.push_back((float)arguments.at(lerp));
-		image.push_back((float)double_image.at(lerp));
+		image.push_back((float)arguments.at(lerp));
 	}
 
-//	cudaError_t error;
-	
 	float*Ceze,*Cezhy,*Cezhx,*dev_Cezeic,*dev_Cezeip,*Ez,*eps_r_z,*sigma_e_z,*Hy,*Hx,
 		*kex,*aex,*bex,*amx,*bmx,*alpha_e,*alpha_m,*sigma_e_pml,*sigma_m_pml
 		,*Psi_ezy,*Psi_ezx,*Psi_hyx,*Psi_hxy,*kmx;
 	float* dev_sigma_e_z,*dev_eps_r_z;
 	float freq = center_freq;
-	float *dev_freq,*D,*D_tot;
-	float* Ezip,*Ezic,*dev_Ezip,*dev_Ezic,*Hy_inc,*Hx_inc,*dev_Hy_inc,*dev_Hx_inc,*dev_Psi_ezy_inc,*dev_Psi_ezx_inc,*dev_Psi_hyx_inc,*dev_Psi_hxy_inc,
-		*Psi_ezy_inc,*Psi_ezx_inc,*Psi_hyx_inc,*Psi_hxy_inc;
-	
+	float *dev_freq,*D;
 	
 	cuComplex *hcjzxp,*hcjzyp,*hcjzxn,*hcjzyn,*hcmxyp,*hcmyxp,*hcmxyn,*hcmyxn;
-	for(int index = 0;index<(1+nx)*(1+ny);index++)
-	{
-		Ezip[index] = 0;
-		Ezic[index] = 0;
-		if(index<(nx*ny))
-		{
-			Hy_inc[index] = 0;
-			Hx_inc[index] = 0;
-		}
-	}
 
-    cout << "starting mallocs" << endl;
 
+	dev_Cezeic = (float*)malloc(sizeof(float)*(1+nx)*(1+ny));
+	dev_Cezeip = (float*)malloc(sizeof(float)*(1+nx)*(1+ny));
 	Ceze = (float*)malloc(sizeof(float)*(1+nx)*(1+ny));
 	Cezhy = (float*)malloc(sizeof(float)*(1+nx)*(1+ny));
 	Cezhx = (float*)malloc(sizeof(float)*(1+nx)*(1+ny));
@@ -921,10 +874,7 @@ double FDTD_CPU(const vector<double> &arguments)
 	Psi_ezx=(float*)malloc(sizeof(float)*nx*20);
 	Psi_hyx=(float*)malloc(sizeof(float)*ny*20);
 	Psi_hxy=(float*)malloc(sizeof(float)*nx*20);
-	Psi_ezy_inc=(float*)malloc(sizeof(float)*ny*20);
-	Psi_ezx_inc=(float*)malloc(sizeof(float)*nx*20);
-	Psi_hyx_inc=(float*)malloc(sizeof(float)*ny*20);
-	Psi_hxy_inc=(float*)malloc(sizeof(float)*nx*20);
+
 	hcjzyp = (cuComplex*)malloc(sizeof(cuComplex )*size_cjzy);
 	hcjzyn = (cuComplex *)malloc(sizeof(cuComplex )*size_cjzy);
 	hcjzxp = (cuComplex *)malloc(sizeof(cuComplex )*size_cjzx);
@@ -933,8 +883,6 @@ double FDTD_CPU(const vector<double> &arguments)
 	hcmxyp = (cuComplex *)malloc(sizeof(cuComplex )*size_cjzy);
 	hcmyxp = (cuComplex *)malloc(sizeof(cuComplex )*size_cjzx);
 	hcmyxn = (cuComplex *)malloc(sizeof(cuComplex )*size_cjzx);
-
-    cout << "malloced everything" << endl;
 
 	CJ_Init(hcjzyp,size_cjzy);//C**** coefficients are for surface current/ field duality for NF2FF processing.
 	CJ_Init(hcjzyn,size_cjzy);
@@ -968,21 +916,25 @@ double FDTD_CPU(const vector<double> &arguments)
 	bmx_init(bmx,sigma_m_pml,kmx,alpha_m);
 	amx_init(amx,sigma_m_pml,kmx,alpha_m,bmx);
 	Ez_init(Ez);
+	
+	
+	
+	scattered_parameter_init(eps_r_z,sigma_e_z,dev_Cezeic,dev_Cezeip);
 
-	scattered_parameter_init(dev_eps_r_z,dev_sigma_e_z,dev_Cezeic,dev_Cezeip);
 
 	float test_Ez;
-
+	
 	/* The calculation part! */
 	for(int i=0;i<number_of_time_steps;i++)
 	{
 		H_field_update(Hy,Hx,Ez,bmx,Psi_hyx,amx,bmx,amx,Psi_hxy,kmx);
 	
-		E_field_update(&i,Ez,Hy,Hx,Psi_ezx,aex,aex,bex,bex,Psi_ezy,kex,Cezhy,Cezhy,Ceze,dev_Cezeip,dev_Cezeic,Ezic,Ezip);
+		E_field_update(&i,Ez,Hy,Hx,Psi_ezx,aex,aex,bex,bex,Psi_ezy,kex,Cezhy,Cezhy,Ceze,dev_Cezeip,dev_Cezeic);
 	
 		calculate_JandM(&freq, &i,Ez,Hy,Hx,hcjzxp,hcjzyp,hcjzxn,hcjzyn,hcmxyp,hcmyxp,hcmxyn,hcmyxn);
 	cout<<Ez[getCell(nx/2,ny/2,nx+1)]<<std::endl;
 	}
+
 
 	cuComplex *L,*N;
 	
@@ -1032,15 +984,6 @@ double FDTD_CPU(const vector<double> &arguments)
 	free(Psi_hxy);
 	free(kmx);
 	free(D);
-	free(D_tot);
-	free(Ezip);
-	free(Ezic);
-	free(Hy_inc);
-	free(Hx_inc);
-	free(Psi_ezy_inc);
-	free(Psi_ezx_inc);
-	free(Psi_hyx_inc);
-	free(Psi_hxy_inc);
 	free(hcjzxp);
 	free(hcjzyp);
 	free(hcjzxn);
@@ -1053,6 +996,7 @@ double FDTD_CPU(const vector<double> &arguments)
 	free(dev_Cezeic);
 	free(L);
 	free(N);
+	system("pause");
 	return (double)fit;
 }
  void scattered_parameter_init(float*eps_r_z,float*sigma_e_z,float*Cezeic,float*Cezeip)
