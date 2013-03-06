@@ -1,0 +1,3 @@
+[submodule "tao"]
+	path = tao
+	url = ssh://git@github.com/travisdesell/tao.git

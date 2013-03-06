@@ -1,0 +1,50 @@
+cmake_minimum_required (VERSION 2.6)
+project (TOMOGRAPHY)
+# The version number.
+set (TOMOGRAPHY_VERSION_MAJOR 1)
+set (TOMOGRAPHY_VERSION_MINOR 0)
+
+#set(PLATFORM 64)
+ 
+set(CMAKE_CXX_FLAGS "-g -Wall -O3 -funroll-loops -ftree-vectorize -msse3")
+
+set(CMAKE_LIBRARY_PATH ${CMAKE_LIBRARY_PATH} /opt/local/lib)
+
+set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_SOURCE_DIR}/tao/undvc_common/cmake/Modules/")
+
+set(BOOST_LIB_PREFIX "lib")
+set(Boost_LIB_PREFIX "lib")
+set(BOOST_COMPILER "-vc100")
+set(Boost_COMPILER "-vc100")
+set(Boost_ADDITIONAL_VERSIONS "1.47" "1.47.0")
+
+find_package(Boost REQUIRED system filesystem)
+find_package(MySQL)
+
+# packages                                                                                                                                                                                                 
+find_package(CUDA)
+
+# nvcc flags                                                                                                                                                                                               
+add_subdirectory(tao)
+
+#include_directories (${PROJECT_SOURCE_DIR}/tao/evolutionary_algorithms)
+#include_directories (${PROJECT_SOURCE_DIR}/tao/synchronous_algorithms)
+#include_directories (${PROJECT_SOURCE_DIR}/tao/undvc_common)
+include_directories (${PROJECT_SOURCE_DIR}/tao)
+include_directories (${Boost_INCLUDE_DIR})
+
+
+add_executable(fdtd_cpu test FDTD_CPU)
+target_link_libraries(fdtd_cpu undvc_common asynchronous_algorithms synchronous_algorithms tao_util)
+
+cuda_add_executable(fdtd_gpu test FDTD_GPU.cu)
+target_link_libraries(fdtd_gpu undvc_common asynchronous_algorithms synchronous_algorithms tao_util)
+set_target_properties(fdtd_gpu PROPERTIES COMPILE_DEFINITIONS CUDA)
+
+
+#if (MYSQL_FOUND)
+#    include_directories(${MYSQL_INCLUDE_DIR})
+
+#    add_executable(SecondStageDB second_stage_db)
+#    target_link_libraries(SecondStageDB government_problem undvc_common asynchronous_algorithms synchronous_algorithms tao_util db_asynchronous_algorithms ${MYSQL_LIBRARIES})
+#endif (MYSQL_FOUND)
