@@ -3,6 +3,22 @@ tomography
 
 Breast cancer tomography imaging objective function code.
 
+There is a submodule (and a sub-submodule in the project).  After cloning the git repository, do:
+
+git submodule init
+git submodule update
+
+This should checkout the code for the tao package.
+
+Then do:
+
+cd tao
+
+git submodule init
+git submodule update
+
+Which will checkout the code for the undvc_common submodule of the tao package.
+
 To compile (make sure cmake and boost are installed):
 
 mkdir build
