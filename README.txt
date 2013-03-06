@@ -26,15 +26,17 @@ cd build
 cmake ..
 make
 
+This will create both fdtd_cpu and fdtd_gpu binaries (for the cpu and gpu respectively).
+
 Then to run:
 
-./fdtd --search_type <ps, de, anm>
+./fdtd_cpu --search_type <ps, de, anm>
 
 for either particle swarm, differential evolution or asynchronous newton method.
 
 Each will spit out other command line parameters for tweaking how the search runs, eg:
 
-Travis-Desells-MacBook-Pro:build deselt$ ./fdtd --search_type ps
+Travis-Desells-MacBook-Pro:build deselt$ ./fdtd_cpu --search_type ps
 parsed argument '--search_type' successfully: ps
 Argument '--population_size' not specified, using default of 200.
 Argument '--maximum_iterations' not specified, could run forever. Hit control-C to quit.
@@ -51,7 +53,7 @@ Initialized partilce swarm.
     global_best_weight: 1.5
     local_best_weight:  1.5
 
-Travis-Desells-MacBook-Pro:build deselt$ ./fdtd --search_type de
+Travis-Desells-MacBook-Pro:build deselt$ ./fdtd_cpu --search_type de
 parsed argument '--search_type' successfully: de
 Argument '--population_size' not specified, using default of 200.
 Argument '--maximum_iterations' not specified, could run forever. Hit control-C to quit.
