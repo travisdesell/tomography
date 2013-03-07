@@ -38,7 +38,7 @@
 #define dt (dx/c0/2)// dx/c0/2
 #define domain_size 0.18
 #define dx (0.001)
-#define NF2FFdistfromboundary 100
+#define NF2FFdistfromboundary ((int)floor((3.2*breast_radius/dx)))
 #define source_position 0.5
 #define dy (0.001)
 #define number_of_time_steps 3000
@@ -48,11 +48,12 @@
 #define f2y (ny/2)
 //#define nx ((int)ceil(domain_size/dx))
 //#define ny ((int)ceil(domain_size/dy))
-#define nx 400
-#define ny 400
+#define nx ((int)ceil(12.7*breast_radius/dx))
+#define ny ((int)ceil(12.7*breast_radius/dy))
 #define d (10*dx)
 #define npml 2
 #define kmax 10
+#define numberofexcitationangles 4
 #define isPW 1
 #define isscattering 1
 #define HANDLE_ERROR( err ) err
@@ -68,12 +69,13 @@
 #define  fmax  (c0/(nc*dx))// change if dy is bigger though now they're the same  fmax is the highest frequency this program can handle
 #define tau (3.3445267e-11) // float ta bu = sqrt(2.3)*nc*dx/(PI*c0*1/sqrt(eps_r_MAX));  from a calculation of fmax.
 //#define tau (5.288161e-11)
-#define target_x (nx/2+105+25)//105 is breast_radius / dx
-#define target_y (ny/2)
+#define target_x (nx/2+15)//105 is breast_radius / dx
+#define target_y (ny/2-15)
 #define source_x (nx/2)      //(target_x-105-80)
 #define source_y (ny/2)
 #define breast_radius 0.0315 //87.535 mm  .  Sample size = 1.
-#define tumor_size (20)
+#define tumor_size (0.01)
+
 //#include <unistd.h>
 //const cuComplex jcmpx (0.0, 1.0);
 /*static void HandleError( cudaError_t err, const char *file,  int line ) {
@@ -332,7 +334,7 @@ __global__ void calculate_JandM(float* f,int* timestep,float*dev_Ez,float*dev_Hy
             Ez = (dev_Ez[dgetCell(x,y,nx+1)]+dev_Ez[dgetCell(x,y+1,nx+1)])/2;
             float Hx=dev_Hx[dgetCell(x,y,nx)];
 
-            cjzyn[index] += Hx*(float)dt*cuexp((float)(-1)*j*(float)2.0*(float)PI*freq*(float)(*timestep)*(float)dt);	//cjzyn and cmxyn need to have nx-2*NF2FFbound-2 elements
+            cjzyn[index] += Hx*(float)dt*cuexp((float)(-1)*j*(float)2.0*(float)PI*freq*(float)(*timestep)*(float)dt);  //cjzyn and cmxyn need to have nx-2*NF2FFbound-2 elements
             cmxyn[index] += Ez*(float)dt*cuexp((float)(-1)*j*(float)2.0*(float)PI*freq*((float)(*timestep)+0.5)*(float)dt);
         }
         else if(isOnxn(x))
@@ -344,6 +346,7 @@ __global__ void calculate_JandM(float* f,int* timestep,float*dev_Ez,float*dev_Hy
     }
 
 }
+
 
 __host__ __device__ float fwf(float timestep,float x, float y,float Phi_inc,float l)
 {
@@ -478,7 +481,7 @@ __global__ void H_inc_update(float*dev_Hy,float*dev_Hx,float*dev_Ez,float*dev_bm
     }
 }
 
-__global__ void E_field_update(int *i,float*dev_Ez,float*dev_Hy,float*dev_Hx,float*dev_Psi_ezx,float*dev_aex,float*dev_aey,float*dev_bex,float*dev_bey,float*dev_Psi_ezy,float*kex,float*Cezhy,float*Cezhx,float*Ceze,float*Cezeip,float*Cezeic,float*Ezip,float*Ezic)
+__global__ void E_field_update(int *i,float*dev_Ez,float*dev_Hy,float*dev_Hx,float*dev_Psi_ezx,float*dev_aex,float*dev_aey,float*dev_bex,float*dev_bey,float*dev_Psi_ezy,float*kex,float*Cezhy,float*Cezhx,float*Ceze,float*Cezeip,float*Cezeic,float*Phi)
 {
     int x=threadIdx.x+blockDim.x*blockIdx.x;
     int y=threadIdx.y+blockDim.y*blockIdx.y;
@@ -486,6 +489,7 @@ __global__ void E_field_update(int *i,float*dev_Ez,float*dev_Hy,float*dev_Hx,flo
     float buffer_Ez;
     //float Ceh = (dt/dx)/(eps0);
     float Cezj = -dt/eps0;
+	float length_offset;
 
     if(x<=nx&&y<=ny)
     {
@@ -499,20 +503,12 @@ __global__ void E_field_update(int *i,float*dev_Ez,float*dev_Hy,float*dev_Hx,flo
         {
             if(isscattering)
             {
-                if(!isPW)
-                {
+                
                     buffer_Ez = Ceze[dgetCell(x,y,nx+1)]*dev_Ez[dgetCell(x,y,nx+1)]+Cezhy[dgetCell(x,y,nx+1)]*(dev_Hy[dgetCell(x,y,nx)]-dev_Hy[dgetCell(x-1,y,nx)])
                         -Cezhx[dgetCell(x,y,nx+1)]*(dev_Hx[dgetCell(x,y,nx)]-dev_Hx[dgetCell(x,y-1,nx)])
-                        +Cezeic[dgetCell(x,y,nx+1)]*Ezic[dgetCell(x,y,nx+1)]
-                        +Cezeip[dgetCell(x,y,nx+1)]*Ezip[dgetCell(x,y,nx+1)];
-                }
-                else
-                {
-                    buffer_Ez = Ceze[dgetCell(x,y,nx+1)]*dev_Ez[dgetCell(x,y,nx+1)]+Cezhy[dgetCell(x,y,nx+1)]*(dev_Hy[dgetCell(x,y,nx)]-dev_Hy[dgetCell(x-1,y,nx)])
-                        -Cezhx[dgetCell(x,y,nx+1)]*(dev_Hx[dgetCell(x,y,nx)]-dev_Hx[dgetCell(x,y-1,nx)])
-                        +Cezeic[dgetCell(x,y,nx+1)]*fwf((float)(*i)+0.5,x,y,0,l0)
-                        +Cezeip[dgetCell(x,y,nx+1)]*fwf((float)(*i)-0.5,x,y,0,l0);
-                }
+                        +Cezeic[dgetCell(x,y,nx+1)]*fwf((float)(*i)+0.5,x-nx/2,y-ny/2,*Phi,-breast_radius)
+                        +Cezeip[dgetCell(x,y,nx+1)]*fwf((float)(*i)-0.5,x-nx/2,y-ny/2,*Phi,-breast_radius);
+                
             }
             else
             {
@@ -576,7 +572,87 @@ __global__ void E_field_update(int *i,float*dev_Ez,float*dev_Hy,float*dev_Hx,flo
 
 }
 
-__global__ void E_inc_update(int *i,float*dev_Hy_inc,float*dev_Hx_inc,float*dev_Psi_ezx_inc,float*dev_aex,float*dev_aey,float*dev_bex,float*dev_bey,float*dev_Psi_ezy_inc,float*kex,float*dev_Ezip,float*dev_Ezic)
+__global__ void Field_reset(float* Ez, float* Hy, float* Hx, float* Psi_ezy,float* Psi_ezx,float* Psi_hyx,float* Psi_hxy,cuComplex*cjzyn,cuComplex*cjzxp,cuComplex*cjzyp,cuComplex*cjzxn,cuComplex*cmxyn,cuComplex*cmyxp,cuComplex*cmxyp,cuComplex*cmyxn)
+{
+	int x = threadIdx.x + blockIdx.x*blockDim.x;
+	int y = threadIdx.y+blockDim.y*blockIdx.y;
+	int index = x + y*blockDim.x*gridDim.x;
+		if(x<=ncells&&x!=0)
+        {
+            Psi_ezx[dgetCell(x-1,y-1,20)] =0;
+        }
+        if(x>=(nx-ncells)&&x!=nx)
+        {
+            Psi_ezx[dgetCell(x-nx+20,y-1,20)]=0;
+        }
+        if(y<=ncells&&y!=0)
+        {
+            Psi_ezy[dgetCell(x-1,y-1,nx)]=0;
+        }
+        if(y>=(ny-ncells)&&y!=ny)
+        {
+            Psi_ezy[dgetCell(x-1,y-ny+20,nx)]=0;
+        }
+		if(x<ncells)
+		{
+            
+			Psi_hyx[dgetCell(x,y,20)]=0;
+		} 
+		if(x>=(nx-ncells))
+		{
+				Psi_hyx[dgetCell(x-nx+20,y,2*ncells)]=0.0;
+		}
+		if(y<ncells)
+		{
+			Psi_hxy[dgetCell(x,y,nx)]=0.0;
+		}
+		if(y>=(ny-ncells))
+		{
+			Psi_hxy[dgetCell(x,y-ny+20,nx)]=0.0;
+		}
+	if(x<=nx&&y<=ny)
+	{
+		Ez[dgetCell(x,y,nx+1)] = 0.0;
+	}
+	if(x<nx&&y<ny)
+	{
+		Hy[dgetCell(x,y,nx)] = 0.0;
+		Hx[dgetCell(x,y,nx)] = 0.0;
+	}
+
+	 if(index<=size_NF2FF_total)
+    {
+        const cuComplex j(0.0,1.0);
+        int x = getxfromthreadIdNF2FF(index);
+        int y = getyfromthreadIdNF2FF(index);
+
+        float Ez;
+        cuComplex pi(PI , 0);
+        cuComplex two(2.0,0.0);
+        cuComplex negativeone(-1.0,0);
+        cuComplex deltatime(dt,0);
+
+        if(index<size_cjzy)
+		{
+            cjzyp[index] = cuComplex(0,0);//cjzyp and cmxyp have nx - 2*NF2FFBoundary -2 elements
+			cjzyn[index] = cuComplex(0,0);
+			cmxyp[index] = cuComplex(0,0);
+			cmxyn[index] = cuComplex(0,0);
+		}
+		if(index<size_cjzx)
+		{
+			cjzxp[index] = cuComplex(0,0);
+			cjzxn[index] = cuComplex(0,0);
+			cmyxp[index] = cuComplex(0,0);
+			cmyxn[index] = cuComplex(0,0);
+		}
+        
+    }
+
+
+}
+
+__global__ void E_inc_update(int *i,float*dev_Hy_inc,float*dev_Hx_inc,float*dev_Psi_ezx_inc,float*dev_aex,float*dev_aey,float*dev_bex,float*dev_bey,float*dev_Psi_ezy_inc,float*kex,float*dev_Ezip,float*dev_Ezic,float*Phi)
 {
     int x=threadIdx.x+blockDim.x*blockIdx.x;
     int y=threadIdx.y+blockDim.y*blockIdx.y;
@@ -825,12 +901,12 @@ void N2FPostProcess (float* D,float f, cuComplex *N,cuComplex *L,cuComplex *cjzx
 
 }
 
-float fitness(float* D,int numberobservationangles, float* measurement)
+float fitness(float* D,int max_index, float* measurement)
 {
     float fit = 0;
-    for(int i =0;i<numberobservationangles;i++)
+    for(int i =0;i<max_index;i++)
     {
-        fit -= pow((measurement[i]-D[i]),2)/pow(measurement[i],2);
+        fit -= pow((measurement[i]-D[i]),2)/(numberofexcitationangles*pow(measurement[i],2));
     }
 
     return fit;
@@ -895,17 +971,17 @@ void Psi_hxy_init(float*Psi_hxy);
 void CJ_Init(cuComplex * cjzyn,int size);
 __global__ void scattered_parameter_init(float*eps_r_z,float*sigma_e_z,float*Cezeic,float*Cezeip);
 
-double FDTD_GPU(const vector<double> &arguments)
+int main(const vector<double> &arguments)
 {
-    //BMP Output_Image;
+   // BMP Output_Image;
     //BMP Scattered_Field_snapshot;
-    //Output_Image.SetSize((nx+1),(ny+1));
-    //Output_Image.SetBitDepth(16);
+   // Output_Image.SetSize((nx+1),(ny+1));
+   // Output_Image.SetBitDepth(16);
     //Scattered_Field_snapshot.SetSize((nx+1),(ny+1));
     //Scattered_Field_snapshot.SetBitDepth(16);
     //RGBApixel Temp;
-    //string outputfilename;
-    //ebmpBYTE StepSize;
+   // string outputfilename;
+    
 
     cout << "calculating FDTD GPU" << endl;
 
@@ -915,12 +991,12 @@ double FDTD_GPU(const vector<double> &arguments)
     for(int lerp = 0; lerp<81;lerp++)//This is setting the material parameters of the optimization cells.
     {
         image.push_back((float)arguments.at(lerp));
-        //image.push_back(20);
+        //image.push_back(10);
     }
     for(int lerp = 81; lerp<81*2;lerp++)
     {
-        image.push_back((float)arguments.at(lerp));
-        //image.push_back(0);
+       image.push_back((float)arguments.at(lerp));
+       // image.push_back(0);
     }
 
 
@@ -953,39 +1029,18 @@ double FDTD_GPU(const vector<double> &arguments)
             ,*Psi_ezy,*Psi_ezx,*Psi_hyx,*Psi_hxy,*kmx;//*Cezj later if using loop current source
     float* dev_sigma_e_z,*dev_eps_r_z;
     float freq = center_freq;
-    float *dev_freq,*D,*D_tot;
-    float* Ezip,*Ezic,*dev_Ezip,*dev_Ezic,*Hy_inc,*Hx_inc,*dev_Hy_inc,*dev_Hx_inc,*dev_Psi_ezy_inc,*dev_Psi_ezx_inc,*dev_Psi_hyx_inc,*dev_Psi_hxy_inc,
-        *Psi_ezy_inc,*Psi_ezx_inc,*Psi_hyx_inc,*Psi_hxy_inc;
+    float *dev_freq,*D,*dev_Phi;
+   
 
-    cuComplex *cjzxp,*cjzyp,*cjzxn,*cjzyn,*cmxyp,*cmyxp,*cmxyn,*cmyxn,*cjzxp_tot,*cjzyp_tot,*cjzxn_tot,*cjzyn_tot,*cmxyp_tot,*cmyxp_tot,*cmxyn_tot,*cmyxn_tot;
-    cuComplex *hcjzxp,*hcjzyp,*hcjzxn,*hcjzyn,*hcmxyp,*hcmyxp,*hcmxyn,*hcmyxn,*hcjzxp_tot,*hcjzyp_tot,*hcjzxn_tot,*hcjzyn_tot,*hcmxyp_tot,*hcmyxp_tot,*hcmxyn_tot
-        ,*hcmyxn_tot;
+    cuComplex *cjzxp,*cjzyp,*cjzxn,*cjzyn,*cmxyp,*cmyxp,*cmxyn,*cmyxn;
+    cuComplex *hcjzxp,*hcjzyp,*hcjzxn,*hcjzyn,*hcmxyp,*hcmyxp,*hcmxyn,*hcmyxn;
+	cuComplex *L,*N;
     int grid_x = int(ceil((float)nx/22));
     int grid_y = int(ceil((float)ny/22));
     dim3 grid(grid_x,grid_y);
     dim3 block(22,22);
-    Hy_inc = (float*)malloc(sizeof(float)*(nx*ny));
-    Hx_inc = (float*)malloc(sizeof(float)*(nx*ny));
-    Ezip = (float*)malloc(sizeof(float)*(1+nx)*(1+ny));
-    Ezic = (float*)malloc(sizeof(float)*(1+nx)*(1+ny));
-    for(int index = 0;index<(1+nx)*(1+ny);index++)
-    {
-        Ezip[index] = 0;
-        Ezic[index] = 0;
-        if(index<(nx*ny))
-        {
-            Hy_inc[index] = 0;
-            Hx_inc[index] = 0;
-        }
-    }
-    cudaMalloc(&dev_Ezip,sizeof(float)*(nx+1)*(ny+1));
-    cudaMalloc(&dev_Ezic,sizeof(float)*(nx+1)*(ny+1));
-    cudaMalloc(&dev_Hy_inc,sizeof(float)*(nx)*(ny));
-    cudaMalloc(&dev_Hx_inc,sizeof(float)*(nx)*(ny));
-    cudaMemcpy(dev_Ezip,Ezip,sizeof(float)*(nx+1)*(ny+1),cudaMemcpyHostToDevice);
-    cudaMemcpy(dev_Ezic,Ezic,sizeof(float)*(nx+1)*(ny+1),cudaMemcpyHostToDevice);
-    cudaMemcpy(dev_Hy_inc,Hy_inc,sizeof(float)*ny*nx,cudaMemcpyHostToDevice);
-    cudaMemcpy(dev_Hx_inc,Hx_inc,sizeof(float)*ny*nx,cudaMemcpyHostToDevice);
+ 
+   
 
     Ceze = (float*)malloc(sizeof(float)*(1+nx)*(1+ny));
     Cezhy = (float*)malloc(sizeof(float)*(1+nx)*(1+ny));
@@ -994,7 +1049,7 @@ double FDTD_GPU(const vector<double> &arguments)
     Ez = (float*)malloc(sizeof(float)*(1+nx)*(1+ny));
     eps_r_z =  (float*)malloc(sizeof(float)*(1+nx)*(1+ny));
     sigma_e_z = (float*)malloc(sizeof(float)*(1+nx)*(1+ny));
-    D = (float*)malloc(sizeof(float)*numberofobservationangles);//D = (float*)malloc(numberofobservationangles*sizeof(float));
+    D = (float*)malloc(sizeof(float)*numberofexcitationangles*numberofobservationangles);//D = (float*)malloc(numberofobservationangles*sizeof(float));
     Hy=(float*)malloc(sizeof(float)*nx*ny);
     Hx=(float*)malloc(sizeof(float)*nx*ny);
     kex = (float*)malloc(sizeof(float)*10);
@@ -1011,10 +1066,6 @@ double FDTD_GPU(const vector<double> &arguments)
     Psi_ezx=(float*)malloc(sizeof(float)*nx*20);
     Psi_hyx=(float*)malloc(sizeof(float)*ny*20);
     Psi_hxy=(float*)malloc(sizeof(float)*nx*20);
-    Psi_ezy_inc=(float*)malloc(sizeof(float)*ny*20);
-    Psi_ezx_inc=(float*)malloc(sizeof(float)*nx*20);
-    Psi_hyx_inc=(float*)malloc(sizeof(float)*ny*20);
-    Psi_hxy_inc=(float*)malloc(sizeof(float)*nx*20);
     hcjzyp = (cuComplex*)malloc(sizeof(cuComplex )*size_cjzy);
     hcjzyn = (cuComplex *)malloc(sizeof(cuComplex )*size_cjzy);
     hcjzxp = (cuComplex *)malloc(sizeof(cuComplex )*size_cjzx);
@@ -1023,43 +1074,11 @@ double FDTD_GPU(const vector<double> &arguments)
     hcmxyp = (cuComplex *)malloc(sizeof(cuComplex )*size_cjzy);
     hcmyxp = (cuComplex *)malloc(sizeof(cuComplex )*size_cjzx);
     hcmyxn = (cuComplex *)malloc(sizeof(cuComplex )*size_cjzx);
+	L  = (cuComplex*)malloc(sizeof(cuComplex)*size_NF2FF_total);
+    N  = (cuComplex*)malloc(sizeof(cuComplex)*size_NF2FF_total);
 
-    hcjzyp_tot = (cuComplex*)malloc(sizeof(cuComplex )*size_cjzy);
-    hcjzyn_tot = (cuComplex *)malloc(sizeof(cuComplex )*size_cjzy);
-    hcjzxp_tot = (cuComplex *)malloc(sizeof(cuComplex )*size_cjzx);
-    hcjzxn_tot = (cuComplex *)malloc(sizeof(cuComplex )*size_cjzx);
-    hcmxyn_tot = (cuComplex *)malloc(sizeof(cuComplex )*size_cjzy);
-    hcmxyp_tot = (cuComplex *)malloc(sizeof(cuComplex )*size_cjzy);
-    hcmyxp_tot = (cuComplex *)malloc(sizeof(cuComplex )*size_cjzx);
-    hcmyxn_tot = (cuComplex *)malloc(sizeof(cuComplex )*size_cjzx);
-    CJ_Init(hcjzyp,size_cjzy);//C**** coefficients are for surface current/ field duality for NF2FF processing.
-    CJ_Init(hcjzyn,size_cjzy);
-    CJ_Init(hcjzxp,size_cjzx);
-    CJ_Init(hcjzxn,size_cjzx);
-    CJ_Init(hcmxyn,size_cjzy);
-    CJ_Init(hcmxyp,size_cjzy);
-    CJ_Init(hcmyxp,size_cjzx);
-    CJ_Init(hcmyxn,size_cjzx);
-    CJ_Init(hcjzyp_tot,size_cjzy);//C**** coefficients are for surface current/ field duality for NF2FF processing.
-    CJ_Init(hcjzyn_tot,size_cjzy);
-    CJ_Init(hcjzxp_tot,size_cjzx);
-    CJ_Init(hcjzxn_tot,size_cjzx);
-    CJ_Init(hcmxyn_tot,size_cjzy);
-    CJ_Init(hcmxyp_tot,size_cjzy);
-    CJ_Init(hcmyxp_tot,size_cjzx);
-    CJ_Init(hcmyxn_tot,size_cjzx);
-    Psi_ezy_init(Psi_ezy);
-    Psi_ezx_init(Psi_ezx);
-    Psi_hyx_init(Psi_hyx);
-    Psi_hxy_init(Psi_hxy);
-    Psi_ezy_init(Psi_ezy_inc);
-    Psi_ezx_init(Psi_ezx_inc);
-    Psi_hyx_init(Psi_hyx_inc);
-    Psi_hxy_init(Psi_hxy_inc);
     eps_r_z_init(eps_r_z,image);
     sigma_e_z_init(sigma_e_z,sigma_e_pml,image);
-    Hy_init(Hy);
-    Hx_init(Hx);
     //float*time1;
     //time1 = (float*)malloc(sizeof(float)*number_of_time_steps);
     Ceze_init(eps_r_z,sigma_e_z,Ceze);	
@@ -1075,7 +1094,6 @@ double FDTD_GPU(const vector<double> &arguments)
     aex_init(aex,sigma_e_pml,kex,alpha_e,bex);
     bmx_init(bmx,sigma_m_pml,kmx,alpha_m);
     amx_init(amx,sigma_m_pml,kmx,alpha_m,bmx);
-    Ez_init(Ez);
     //Jz_init(Jz);
     //system("pause");   
     //FILE* file = fopen("results.txt", "w");
@@ -1091,7 +1109,7 @@ double FDTD_GPU(const vector<double> &arguments)
     float *dev_Ez,*dev_Hy,*dev_Hx;
 
     float*dev_Psi_ezy,*dev_Psi_ezx,*dev_Psi_hyx,*dev_Psi_hxy;
-
+	
     cudaMalloc(&dev_eps_r_z,sizeof(float)*(nx+1)*(ny+1));
     cudaMalloc(&dev_sigma_e_z,sizeof(float)*(nx+1)*(ny+1));
     cudaMalloc(&dev_Cezeic,sizeof(float)*(nx+1)*(ny+1));
@@ -1099,24 +1117,14 @@ double FDTD_GPU(const vector<double> &arguments)
     cudaMemcpy(dev_eps_r_z,eps_r_z,sizeof(float)*(nx+1)*(ny+1),cudaMemcpyHostToDevice);
     cudaMemcpy(dev_sigma_e_z,sigma_e_z,sizeof(float)*(nx+1)*(ny+1),cudaMemcpyHostToDevice);
     scattered_parameter_init<<<grid,block>>>(dev_eps_r_z,dev_sigma_e_z,dev_Cezeic,dev_Cezeip);
-    float *Cezeic = (float*)malloc((sizeof(float))*(nx+1)*(ny+1));
-    float *Cezeip = (float*)malloc((sizeof(float))*(nx+1)*(ny+1));
-    cudaMemcpy(Cezeic,dev_Cezeic,sizeof(float)*(nx+1)*(ny+1),cudaMemcpyDeviceToHost);
-    cudaMemcpy(Cezeip,dev_Cezeip,sizeof(float)*(nx+1)*(ny+1),cudaMemcpyDeviceToHost);
+    //float *Cezeic = (float*)malloc((sizeof(float))*(nx+1)*(ny+1));
+   // float *Cezeip = (float*)malloc((sizeof(float))*(nx+1)*(ny+1));
+    //cudaMemcpy(Cezeic,dev_Cezeic,sizeof(float)*(nx+1)*(ny+1),cudaMemcpyDeviceToHost);
+    //cudaMemcpy(Cezeip,dev_Cezeip,sizeof(float)*(nx+1)*(ny+1),cudaMemcpyDeviceToHost);
     float radius;
-    //for(int i = 0; i<(nx+1);i++)
-    //{
-    //	for(int j =0; j<(ny+1);j++)
-    //	{
-    //		radius = sqrt((i-nx/2)*(i-nx/2)*dx*dx+(j-ny/2)*(j-ny/2)*dy*dy);
-    //		if(radius<breast_radius)
-    //		{
-    //		cout<<"Cezeip = "<<Cezeip[getCell(i,j,nx+1)]<<"(i,j) = ("<<i<<","<<j<<")"<<endl;
-    //		//cin.ignore();
-    //		}
-    //	}
-    //}
 
+    
+	cudaMalloc(&dev_Phi,sizeof(float));
     cudaMalloc(&dev_kex,sizeof(float)*10);
     cudaMalloc(&dev_kmx,sizeof(float)*10);
     cudaMalloc(&dev_Ez,sizeof(float)*(nx+1)*(ny+1));
@@ -1127,10 +1135,7 @@ double FDTD_GPU(const vector<double> &arguments)
     cudaMalloc(&dev_Psi_ezx,sizeof(float)*20*(ny+1));
     cudaMalloc(&dev_Psi_hyx,sizeof(float)*20*(ny));
     cudaMalloc(&dev_Psi_hxy,sizeof(float)*20*(nx));
-    cudaMalloc(&dev_Psi_ezy_inc,sizeof(float)*20*(nx+1));
-    cudaMalloc(&dev_Psi_ezx_inc,sizeof(float)*20*(ny+1));
-    cudaMalloc(&dev_Psi_hyx_inc,sizeof(float)*20*(ny));
-    cudaMalloc(&dev_Psi_hxy_inc,sizeof(float)*20*(nx));
+
     cudaMalloc(&cjzxp,sizeof(cuComplex)*size_NF2FF_total);
     cudaMalloc(&cjzyp,sizeof(cuComplex)*size_NF2FF_total);
     cudaMalloc(&cjzxn,sizeof(cuComplex)*size_NF2FF_total);
@@ -1139,26 +1144,9 @@ double FDTD_GPU(const vector<double> &arguments)
     cudaMalloc(&cmxyn,sizeof(cuComplex)*size_NF2FF_total);
     cudaMalloc(&cmyxp,sizeof(cuComplex)*size_NF2FF_total);
     cudaMalloc(&cmyxn,sizeof(cuComplex)*size_NF2FF_total);
-    cudaMalloc(&cjzxp_tot,sizeof(cuComplex)*size_NF2FF_total);
-    cudaMalloc(&cjzyp_tot,sizeof(cuComplex)*size_NF2FF_total);
-    cudaMalloc(&cjzxn_tot,sizeof(cuComplex)*size_NF2FF_total);
-    cudaMalloc(&cjzyn_tot,sizeof(cuComplex)*size_NF2FF_total);
-    cudaMalloc(&cmxyp_tot,sizeof(cuComplex)*size_NF2FF_total);
-    cudaMalloc(&cmxyn_tot,sizeof(cuComplex)*size_NF2FF_total);
-    cudaMalloc(&cmyxp_tot,sizeof(cuComplex)*size_NF2FF_total);
-    cudaMalloc(&cmyxn_tot,sizeof(cuComplex)*size_NF2FF_total);
+ 
     cudaMemcpy(dev_freq,&freq,sizeof(float),cudaMemcpyHostToDevice);
-    cudaMemcpy(dev_Psi_ezy,Psi_ezy,sizeof(float)*20*(nx),cudaMemcpyHostToDevice);
-    cudaMemcpy(dev_Psi_ezx,Psi_ezx,sizeof(float)*20*(ny),cudaMemcpyHostToDevice);
-    cudaMemcpy(dev_Psi_hyx,Psi_hyx,sizeof(float)*20*(ny),cudaMemcpyHostToDevice );
-    cudaMemcpy(dev_Psi_hxy,Psi_hxy,sizeof(float)*20*nx,cudaMemcpyHostToDevice);
-    cudaMemcpy(dev_Psi_ezy_inc,Psi_ezy_inc,sizeof(float)*20*nx,cudaMemcpyHostToDevice);
-    cudaMemcpy(dev_Psi_ezx_inc,Psi_ezx_inc,sizeof(float)*20*ny,cudaMemcpyHostToDevice);
-    cudaMemcpy(dev_Psi_hyx_inc,Psi_hyx_inc,sizeof(float)*20*ny,cudaMemcpyHostToDevice );
-    cudaMemcpy(dev_Psi_hxy_inc,Psi_hxy_inc,sizeof(float)*20*nx,cudaMemcpyHostToDevice);
-    cudaMemcpy(dev_Ez,Ez,sizeof(float)*(nx+1)*(ny+1),cudaMemcpyHostToDevice);
-    cudaMemcpy(dev_Hy,Hy,sizeof(float)*nx*ny,cudaMemcpyHostToDevice);
-    cudaMemcpy(dev_Hx,Hx,sizeof(float)*nx*ny,cudaMemcpyHostToDevice);
+
     cudaMalloc(&dev_bex,sizeof(float)*10);
     cudaMalloc(&dev_bmx,sizeof(float)*10);
     cudaMalloc(&dev_amx,sizeof(float)*10);
@@ -1173,23 +1161,9 @@ double FDTD_GPU(const vector<double> &arguments)
     if(error != cudaSuccess) {
         printf("%s\n",cudaGetErrorString(error));
     }
-    cudaMemcpy(cjzyn,hcjzyn,sizeof(cuComplex)*size_cjzy,cudaMemcpyHostToDevice);
-    cudaMemcpy(cjzxp,hcjzxp,sizeof(cuComplex)*size_cjzx,cudaMemcpyHostToDevice);
-    cudaMemcpy(cjzyp,hcjzyp,sizeof(cuComplex)*size_cjzy,cudaMemcpyHostToDevice);
-    cudaMemcpy(cjzxn,hcjzxn,sizeof(cuComplex)*size_cjzx,cudaMemcpyHostToDevice);
-    cudaMemcpy(cmxyn,hcmxyn,sizeof(cuComplex)*size_cjzy,cudaMemcpyHostToDevice);
-    cudaMemcpy(cmxyp,hcmxyp,sizeof(cuComplex)*size_cjzy,cudaMemcpyHostToDevice);
-    cudaMemcpy(cmyxn,hcmyxn,sizeof(cuComplex)*size_cjzx,cudaMemcpyHostToDevice);
-    cudaMemcpy(cmyxp,hcmyxp,sizeof(cuComplex)*size_cjzx,cudaMemcpyHostToDevice);
+ Field_reset<<<grid,block>>>(dev_Ez, dev_Hy, dev_Hx, dev_Psi_ezy, dev_Psi_ezx, dev_Psi_hyx, dev_Psi_hxy,cjzyn,cjzxp,cjzyp,cjzxn,cmxyn,cmyxp,cmxyp,cmyxn);
+	//Field_reset is also good for making all these values zero.
 
-    cudaMemcpy(cjzyn_tot,hcjzyn_tot,sizeof(cuComplex)*size_cjzy,cudaMemcpyHostToDevice);
-    cudaMemcpy(cjzxp_tot,hcjzxp_tot,sizeof(cuComplex)*size_cjzx,cudaMemcpyHostToDevice);
-    cudaMemcpy(cjzyp_tot,hcjzyp_tot,sizeof(cuComplex)*size_cjzy,cudaMemcpyHostToDevice);
-    cudaMemcpy(cjzxn_tot,hcjzxn_tot,sizeof(cuComplex)*size_cjzx,cudaMemcpyHostToDevice);
-    cudaMemcpy(cmxyn_tot,hcmxyn_tot,sizeof(cuComplex)*size_cjzy,cudaMemcpyHostToDevice);
-    cudaMemcpy(cmxyp_tot,hcmxyp_tot,sizeof(cuComplex)*size_cjzy,cudaMemcpyHostToDevice);
-    cudaMemcpy(cmyxn_tot,hcmyxn_tot,sizeof(cuComplex)*size_cjzx,cudaMemcpyHostToDevice);
-    cudaMemcpy(cmyxp_tot,hcmyxp_tot,sizeof(cuComplex)*size_cjzx,cudaMemcpyHostToDevice);
 
     cudaMemcpy(dev_kex,kex,sizeof(float)*10,cudaMemcpyHostToDevice);
     cudaMemcpy(dev_kmx,kmx,sizeof(float)*10,cudaMemcpyHostToDevice);
@@ -1210,246 +1184,94 @@ double FDTD_GPU(const vector<double> &arguments)
 
     dim3 gridNF2FF((int)ceil(size_NF2FF_total/512.0));
     dim3 blockNF2FF(512);
-    //system("PAUSE");
-    //time_t start,end;
+
     float test_Ez_2;
-    //time(&start);
-    //error = cudaGetLastError();
-    //printf("%s\n",cudaGetErrorString(error));
-    //ofstream myfile;
-    //ifstream fields;
-    //fields.open("Field_snapshot.txt");
-    //if(!fields)
-    //{
-    //	cout<<"Couldn't open file"<<endl;
-    //	cin>>test_Ez_2;
-    //}
-    //else
-    //{
-    //	cout<<"File opening success!"<<endl;
-    //}
-    //myfile.open("Scattered_Ez_at_f2.txt");
-    //myfile<<"foci1      foci2"<<endl;
-    //ostringstream convert;
-    //int x,y;
+	float Phi;
+	//Output_Image.SetBitDepth(16);
+
+	//for(int x = 0;x<nx+1;x++)// This double loop makes an image of the target.  Delete when using this as forward solver.
+	//	for(int y = 0; y<ny+1;y++)
+	//	{
+	//		{
+	//			Temp.Green = 0;
+	//			if(eps_r_z[getCell(x,y,nx+1)] >15)
+	//			{
+	//			Temp.Red = 255;
+	//			Temp.Blue = 0;
+	//			}
+	//			else
+	//			{
+	//			Temp.Blue = 150;
+	//			Temp.Red = 0;
+	//			}
+	//		}
+	//		Output_Image.SetPixel(x,y,Temp);
+	//	}
+	//Output_Image.WriteToFile("Permittivity_map_measurement.bmp");
     /* The calculation part! */
-    for(int i=0;i<number_of_time_steps;i++)
-    {
-        cudaMemcpy(dev_i,&i,sizeof(int),cudaMemcpyHostToDevice);
 
-        //H_inc_update<<<grid,block>>>(dev_Hy_inc,dev_Hx_inc,dev_Ezic,dev_bmx,dev_Psi_hyx_inc,dev_amx,dev_bmx,dev_amx,dev_Psi_hxy_inc,dev_kmx);
-        //E_inc_update<<<grid,block>>>(dev_i,dev_Hy_inc,dev_Hx_inc,dev_Psi_ezx_inc,dev_aex,dev_aex,dev_bex,dev_bex,dev_Psi_ezy_inc,dev_kex,dev_Ezip,dev_Ezic);
+	//ofstream measurement_data;
+	//measurement_data.open("measurement_data.txt");
 
-        H_field_update<<<grid,block>>>(dev_Hy,dev_Hx,dev_Ez,dev_bmx,dev_Psi_hyx,dev_amx,dev_bmx,dev_amx,dev_Psi_hxy,dev_kmx);
+	for(int Phi_index = 0; Phi_index<numberofexcitationangles; Phi_index++)
+	{
 
-        // H_field_update(float*dev_Hy,float*dev_Hx,float*dev_Ez,float*dev_bmx,float*dev_Psi_hyx,float*dev_amx,float*dev_bmy,float*dev_amy,float*dev_Psi_hxy,float*kex,float*Chxez,float*Chyez,float*Chyh,float*Chxh)
-        //cudaMemcpy(dev_i,&i,sizeof(int),cudaMemcpyHostToDevice);
-        E_field_update<<<grid,block>>>(dev_i,dev_Ez,dev_Hy,dev_Hx,dev_Psi_ezx,dev_aex,dev_aex,dev_bex,dev_bex,dev_Psi_ezy,dev_kex,dev_Cezhy,dev_Cezhy,dev_Ceze,dev_Cezeip,dev_Cezeic,dev_Ezic,dev_Ezip);
+		Phi = Phi_index*2*PI/numberofexcitationangles;
+		cudaMemcpy(dev_Phi,&Phi,sizeof(float),cudaMemcpyHostToDevice);
 
-        calculate_JandM<<<gridNF2FF,blockNF2FF>>>(dev_freq, dev_i,dev_Ez,dev_Hy,dev_Hx,cjzxp,cjzyp,cjzxn,cjzyn,cmxyp,cmyxp,cmxyn,cmyxn);
-        //float* f,int* timestep,float*dev_Ez,float*dev_Hy,float*dev_Hx,cuComplex *cjzxp,cuComplex *cjzyp,cuComplex*cjzxn,cuComplex*cjzyn,cuComplex*cmxyp,cuComplex*cmyxp,cuComplex*cmxyn,cuComplex*cmyxn,float*dev_Ezic,float*dev_Ezip,float*dev_Hx_inc,float*dev_Hy_inc
-        //if(isscattering)
-        //{
-        //calculate_JandM_total<<<gridNF2FF,blockNF2FF>>>(dev_freq,dev_i,dev_Ez,dev_Hy,dev_Hx,cjzxp_tot,cjzyp_tot,cjzxn_tot,cjzyn_tot,cmxyp_tot,cmyxp_tot,cmxyn_tot,cmyxn_tot,dev_Ezic,dev_Ezip,dev_Hx_inc,dev_Hy_inc);
-        //}
-        //		unsigned char green = 128+127*buffer_Ez/0.4;
-        /*ptr[offset].x = 0;
-          ptr[offset].y = green;
-          ptr[offset].z = 0;
-          ptr[offset].w = 255;*///OpenGL stuff
-        //	cudaMemcpy(&test_Ez,&dev_Ez[getCell(nx/2,ny/2,nx+1)],sizeof(float),cudaMemcpyDeviceToHost);
-        //cudaMemcpy(&test_Ez,(dev_Ez+5000),sizeof(float),cudaMemcpyDeviceToHost);
-        //cudaMemcpy(&test_Ez_2,&dev_Ez[getCell(nx/2-100,ny/2,nx+1)],sizeof(float),cudaMemcpyDeviceToHost);
-        //cudaMemcpy(&test_Ez,(dev_Ez+getCell(nx/2,ny/2,nx+1)),sizeof(float),cudaMemcpyDeviceToHost);
-        //cout<<"Ez (V/m) "<<test_Ez<<" "<<i<<endl;
-        //myfile<<test_Ez<<"          "<<test_Ez_2<<endl;
-        //if(i==0)
-        //{
-        //	//cudaMemcpy(Ez,dev_Ez,sizeof(float)*(nx+1)*(ny+1),cudaMemcpyDeviceToHost);
-        //	for(int ind = 0;ind<(nx+1)*(ny+1);ind++)
-        //	{
-        //	fields>>test_Ez;
-        //	Ez[ind] = Ez[ind]-test_Ez;// before this operation, Ez[ind] is the total field.  After this step, Ez[ind] is just the scattered field
-        //	}
-        //	for(int x = 0;x<=nx;x++)
-        //	{
-        //		for(int y =0;y<=ny;y++)
-        //		{
-        //		//Temp.Red = 255*((eps_r_z[getCell(x,y,nx+1)]-1))/25;
-        //		Temp.Red =0;
-        //		Temp.Green = (ebmpBYTE)(127+128*(Ez[getCell(x,y,nx+1)])/(1));
-        //	//	Temp.Green = 0;
-        //	//	if((x == f2x)||(y==f2y))
-        //		//{
-        //		//	Temp.Blue = (ebmpBYTE)254;
-        //		//}
-        //		//else
-        //		//{
-        //			Temp.Blue = 255*sqrt(sigma_e_z[getCell(x,y,nx+1)]-1)/sqrt(10000.0);
-        //		//}
-        //		//Temp.Blue = 0; 
-        //		Temp.Alpha = 0;
-        //		/*if((sqrt(((float)x-f1x)*((float)x-f1x)+((float)y-f1y)*((float)y-f1y))+sqrt(((float)x-f2x)*((float)x-f2x)+((float)y-f2y)*((float)y-f2y)))>500)
-        //		{
-        //			Temp.Green = (ebmpBYTE)0;
-        //		}*/
-        //		Scattered_Field_snapshot.SetPixel(x,y,Temp);
-        //	
+		for(int i=0;i<number_of_time_steps;i++)
+		{
 
-        //		}
-        //	}
-        //	for(y  = 0;y<=nx;y++)
-        //	{
-        //		myfile<<Ez[getCell(f2x,y,nx+1)]<<" ";
-        //	}
-        //	myfile.close();
+			cudaMemcpy(dev_i,&i,sizeof(int),cudaMemcpyHostToDevice);
+			H_field_update<<<grid,block>>>(dev_Hy,dev_Hx,dev_Ez,dev_bmx,dev_Psi_hyx,dev_amx,dev_bmx,dev_amx,dev_Psi_hxy,dev_kmx);
+			E_field_update<<<grid,block>>>(dev_i,dev_Ez,dev_Hy,dev_Hx,dev_Psi_ezx,dev_aex,dev_aex,dev_bex,dev_bex,dev_Psi_ezy,dev_kex,dev_Cezhy,dev_Cezhy,dev_Ceze,dev_Cezeip,dev_Cezeic,dev_Phi);
+			calculate_JandM<<<gridNF2FF,blockNF2FF>>>(dev_freq, dev_i,dev_Ez,dev_Hy,dev_Hx,cjzxp,cjzyp,cjzxn,cjzyn,cmxyp,cmyxp,cmxyn,cmyxn);
+		
+		}
 
-        //	
-        //	Scattered_Field_snapshot.WriteToFile("Target_image.bmp");
-        //}
+		cudaMemcpy(hcjzyn,cjzyn,sizeof(cuComplex)*size_cjzy,cudaMemcpyDeviceToHost);
+		cudaMemcpy(hcjzxp,cjzxp,sizeof(cuComplex)*size_cjzx,cudaMemcpyDeviceToHost);
+		cudaMemcpy(hcjzyp,cjzyp,sizeof(cuComplex)*size_cjzy,cudaMemcpyDeviceToHost);
+		cudaMemcpy(hcjzxn,cjzxn,sizeof(cuComplex)*size_cjzx,cudaMemcpyDeviceToHost);
+		cudaMemcpy(hcmxyn,cmxyn,sizeof(cuComplex)*size_cjzy,cudaMemcpyDeviceToHost);
+		cudaMemcpy(hcmyxp,cmyxp,sizeof(cuComplex)*size_cjzx,cudaMemcpyDeviceToHost);
+		cudaMemcpy(hcmxyp,cmxyp,sizeof(cuComplex)*size_cjzy,cudaMemcpyDeviceToHost);
+		cudaMemcpy(hcmyxn,cmyxn,sizeof(cuComplex)*size_cjzy,cudaMemcpyDeviceToHost);
 
-        //if(!(i%20 - 4))
-        //{
-        //	cudaMemcpy(Ez,dev_Ez,sizeof(float)*(nx+1)*(ny+1),cudaMemcpyDeviceToHost);
-        //	for(int x = 0;x<=nx;x++)
-        //	{
-        //		for(int y = 0;y<=ny;y++)
-        //		{
-        //			
+		CJ_Init(L,size_NF2FF_total);
+		CJ_Init(N,size_NF2FF_total);
 
-        //			radius = sqrt((x-nx/2)*dx*(x-nx/2)*dx+(y-ny/2)*dy*dy*(y-ny/2));
-        //			Temp.Red = (ebmpBYTE)255*((eps_r_z[getCell(x,y,nx+1)]-1)/60);
-        //			Temp.Green = (ebmpBYTE)(127+128*(Ez[getCell(x,y,nx+1)])/(0.2));
-        //			if(isOnxp(x)||isOnyp(x,y)||isOnyn(x,y)||isOnxn(x))
-        //			{
-        //				Temp.Green = 0;
-        //			}
-        //			Temp.Blue = 0;
-        //			
-        //			//if(radius>breast_radius)
-        //			//{
-        //			//	Temp.Blue = 50;
-        //			//}
-        //			Temp.Alpha =0;
-        //			Output_Image.SetPixel(x,y,Temp);
-        //			
-        //		
-        //		}
-        //	}
-        //			ostringstream convert;
-        //			convert << i/20;
-        //			outputfilename = "Current_source_times_r_"+convert.str()+".bmp";
-        //			
-        //			Output_Image.WriteToFile(outputfilename.c_str());
-        //}
+		N2FPostProcess(D + Phi_index*numberofobservationangles, freq,N,L,hcjzxp,hcjzyp,hcjzxn,hcjzyn,hcmxyp,hcmyxp,hcmxyn,hcmyxn);
+		//notice the D + Phi_index*numberofobservationangles. D is in total 4*numberofobservaion angles, so that's how we fill them in sequentially.
 
-        //cout<<"Ez (V/m) "<<test_Ez<<" "<<i<<endl;
-        //cout<<fwf( i,nx, ny, 0)<<endl;
-    }
-    cudaMemcpy(hcjzyn,cjzyn,sizeof(cuComplex)*size_cjzy,cudaMemcpyDeviceToHost);
-    cudaMemcpy(hcjzxp,cjzxp,sizeof(cuComplex)*size_cjzx,cudaMemcpyDeviceToHost);
-    cudaMemcpy(hcjzyp,cjzyp,sizeof(cuComplex)*size_cjzy,cudaMemcpyDeviceToHost);
-    cudaMemcpy(hcjzxn,cjzxn,sizeof(cuComplex)*size_cjzx,cudaMemcpyDeviceToHost);
-    cudaMemcpy(hcmxyn,cmxyn,sizeof(cuComplex)*size_cjzy,cudaMemcpyDeviceToHost);
-    cudaMemcpy(hcmyxp,cmyxp,sizeof(cuComplex)*size_cjzx,cudaMemcpyDeviceToHost);
-    cudaMemcpy(hcmxyp,cmxyp,sizeof(cuComplex)*size_cjzy,cudaMemcpyDeviceToHost);
-    cudaMemcpy(hcmyxn,cmyxn,sizeof(cuComplex)*size_cjzy,cudaMemcpyDeviceToHost);
+		//for(int i = 0;i<numberofobservationangles;i++)  // This is for recording simulated measured data
+    	//{
+    		//measurement_data<<*(D+Phi_index*numberofobservationangles+i)<<" , ";
+			//cout<<*(D+Phi_index*numberofobservationangles+i)<<endl;
+    	//}
 
-    cudaMemcpy(hcjzyn_tot,cjzyn_tot,sizeof(cuComplex)*size_cjzy,cudaMemcpyDeviceToHost);
-    cudaMemcpy(hcjzxp_tot,cjzxp_tot,sizeof(cuComplex)*size_cjzx,cudaMemcpyDeviceToHost);
-    cudaMemcpy(hcjzyp_tot,cjzyp_tot,sizeof(cuComplex)*size_cjzy,cudaMemcpyDeviceToHost);
-    cudaMemcpy(hcjzxn_tot,cjzxn_tot,sizeof(cuComplex)*size_cjzx,cudaMemcpyDeviceToHost);
-    cudaMemcpy(hcmxyn_tot,cmxyn_tot,sizeof(cuComplex)*size_cjzy,cudaMemcpyDeviceToHost);
-    cudaMemcpy(hcmyxp_tot,cmyxp_tot,sizeof(cuComplex)*size_cjzx,cudaMemcpyDeviceToHost);
-    cudaMemcpy(hcmxyp_tot,cmxyp_tot,sizeof(cuComplex)*size_cjzy,cudaMemcpyDeviceToHost);
-    cudaMemcpy(hcmyxn_tot,cmyxn_tot,sizeof(cuComplex)*size_cjzy,cudaMemcpyDeviceToHost);
+		//measurement_data<<endl;
+		Field_reset<<<grid,block>>>(dev_Ez, dev_Hy, dev_Hx, dev_Psi_ezy, dev_Psi_ezx, dev_Psi_hyx, dev_Psi_hxy,cjzyn,cjzxp,cjzyp,cjzxn,cmxyn,cmyxp,cmxyp,cmyxn);
 
-    cuComplex *L,*N;
-    for(int i=0;i<numberofobservationangles;i++)
-    {
-        //cout<<"hcmyxp = "<<hcmyxp[i].r<<" + i"<<hcmyxp[i].i<<endl;
-    }
+	}
+   
 
-    L  = (cuComplex*)malloc(sizeof(cuComplex)*size_NF2FF_total);
-    N = (cuComplex*)malloc(sizeof(cuComplex)*size_NF2FF_total);
 
-    CJ_Init(L,size_NF2FF_total);
-    CJ_Init(N,size_NF2FF_total);
+    
+   
 
-    N2FPostProcess(D, freq,N,L,hcjzxp,hcjzyp,hcjzxn,hcjzyn,hcmxyp,hcmyxp,hcmxyn,hcmyxn);
-    CJ_Init(L,size_NF2FF_total);
-    CJ_Init(N,size_NF2FF_total);
-    D_tot = (float*)malloc(sizeof(float)*numberofobservationangles);
-    N2FPostProcess(D_tot,freq,N,L,hcjzxp_tot,hcjzyp_tot,hcjzxn_tot,hcjzyn_tot,hcmxyp_tot,hcmyxp_tot,hcmxyn_tot,hcmyxn_tot);
-    float measurement[numberofobservationangles] = {0.38446 , 0.362389 , 0.309065 , 0.237687 , 0.162638 , 0.101565 , 0.0642376 , 0.0457471 , 0.0406768 , 0.0462104 , 0.0534992 , 0.0586805 , 0.0681197 , 0.0845823 , 0.105639 , 0.130494 , 0.15567 , 0.169704 , 0.162106 , 0.135797 , 0.102823 , 0.0717831 , 0.0478674 , 0.0364377 , 0.0385978 , 0.0501895 , 0.067232 , 0.0870665 , 0.10573 , 0.118834 , 0.123803 , 0.11963 , 0.106446 , 0.087042 , 0.0667677 , 0.0498503 , 0.0385427 , 0.0365824 , 0.0478755 , 0.0714402 , 0.102585 , 0.135752 , 0.161719 , 0.169557 , 0.156789 , 0.13172 , 0.104872 , 0.0826252 , 0.0674893 , 0.0588946 , 0.0528211 , 0.0459529 , 0.0410625 , 0.0449233 , 0.0647455 , 0.105435 , 0.165446 , 0.237711 , 0.310644 , 0.365682 };
-    //measurement = (float*)malloc(sizeof(float)*numberofobservationangles);
-
-    //float Phi;
-
-    //	for(int i = 0;i<numberofobservationangles;i++)
-    //	{
-    //	Phi = 360*(float)i/numberofobservationangles;
-    //	cout<<"D "<<D[i]<<" Phi = "<<Phi<<endl;
-    //}
-    //	for(int i=0;i<numberofobservationangles;i++)
-    //	{
-    //	cout<<"L = "<<L[i].r<<" + i"<<L[i].i<<" "<<i<<endl;
-    //	}
-    //for(int i=0;i<numberofobservationangles;i++)
-    //	{
-    //	cout<<"N = "<<N[i].r<<" + i"<<N[i].i<<" "<<i<<endl;
-    //	}
-
+    float measurement[numberofobservationangles*numberofexcitationangles] = {0.544912 , 0.518606 , 0.439233 , 0.330533 , 0.219116 , 0.135115 , 0.0923969 , 0.0774134 , 0.0740459 , 0.0739238 , 0.0660047 , 0.0465372 , 0.0248307 , 0.00913681 , 0.00186162 , 0.0038402 , 0.0130785 , 0.0238094 , 0.0312918 , 0.035705 , 0.0388307 , 0.039513 , 0.0368443 , 0.0338221 , 0.0324815 , 0.0305907 , 0.0270149 , 0.0239178 , 0.0224438 , 0.021849 , 0.0217346 , 0.0222152 , 0.023146 , 0.0245181 , 0.0267161 , 0.0286964 , 0.0276803 , 0.0235098 , 0.0197177 , 0.0183168 , 0.0196998 , 0.0261493 , 0.0375584 , 0.0479223 , 0.0511598 , 0.0461443 , 0.035713 , 0.0249863 , 0.0203708 , 0.0260456 , 0.0395441 , 0.054163 , 0.0660136 , 0.0763823 , 0.0935922 , 0.132053 , 0.201299 , 0.299247 , 0.410792 , 0.504467 , 
+							0.0490085 , 0.0278468 , 0.0123693 , 0.00899709 , 0.0196632 , 0.0401112 , 0.0623734 , 0.0809561 , 0.096057 , 0.113814 , 0.145125 , 0.200388 , 0.283438 , 0.386362 , 0.486139 , 0.549594 , 0.547993 , 0.475775 , 0.358033 , 0.230962 , 0.118935 , 0.039843 , 0.00700227 , 0.0112335 , 0.0300356 , 0.0494414 , 0.0605159 , 0.0585777 , 0.0503323 , 0.045704 , 0.0474064 , 0.0523123 , 0.0558987 , 0.0545722 , 0.0475098 , 0.0366045 , 0.0248037 , 0.0155752 , 0.0115322 , 0.0127167 , 0.0176523 , 0.0243556 , 0.0310764 , 0.037444 , 0.0432292 , 0.0469609 , 0.0471761 , 0.0435653 , 0.0369347 , 0.0293987 , 0.0235478 , 0.0206039 , 0.020754 , 0.0247748 , 0.0336772 , 0.047007 , 0.0618746 , 0.0734482 , 0.0763332 , 0.0674785 , 
+							0.0463129 , 0.0448933 , 0.0398454 , 0.0319834 , 0.0239428 , 0.0174267 , 0.0129155 , 0.0116624 , 0.0154122 , 0.0247183 , 0.0376821 , 0.0494142 , 0.0552493 , 0.0544909 , 0.0501016 , 0.0466044 , 0.047395 , 0.0522298 , 0.0576919 , 0.0588555 , 0.0504011 , 0.0311956 , 0.0107719 , 0.00755493 , 0.0394798 , 0.116099 , 0.232324 , 0.36478 , 0.478314 , 0.541685 , 0.541186 , 0.484009 , 0.391878 , 0.291105 , 0.204554 , 0.145352 , 0.113254 , 0.0973423 , 0.0835717 , 0.0637299 , 0.0397899 , 0.0189781 , 0.00814281 , 0.0118845 , 0.0291142 , 0.0513172 , 0.0680543 , 0.0744519 , 0.0718442 , 0.0622228 , 0.0473734 , 0.0329352 , 0.0245156 , 0.0212818 , 0.0204027 , 0.0228792 , 0.0298908 , 0.0380399 , 0.0432513 , 0.0455291 , 
+							0.0469428 , 0.049667 , 0.0453111 , 0.0370016 , 0.0278006 , 0.0201062 , 0.0173687 , 0.020228 , 0.0242543 , 0.0264199 , 0.0275476 , 0.027771 , 0.0262174 , 0.0237332 , 0.0219206 , 0.0212424 , 0.0214967 , 0.0226845 , 0.0248514 , 0.0275874 , 0.0300439 , 0.0318892 , 0.0340621 , 0.0369823 , 0.0388068 , 0.0379494 , 0.0350817 , 0.030462 , 0.0230471 , 0.0133404 , 0.00457234 , 0.00152755 , 0.00874873 , 0.0260448 , 0.0463293 , 0.0633742 , 0.0751071 , 0.0775575 , 0.0756597 , 0.0916989 , 0.141021 , 0.22185 , 0.328433 , 0.44207 , 0.524772 , 0.544711 , 0.498668 , 0.407614 , 0.29953 , 0.199594 , 0.128704 , 0.0929922 , 0.0772499 , 0.0654169 , 0.0536587 , 0.0399619 , 0.0255793 , 0.0193488 , 0.0253531 , 0.0373143 , 
+							};//I've just hardcoded the measurement values.  Maybe later we'll read them from a text file.
+  
+	
     float fit;
-    fit=fitness(D,numberofobservationangles, measurement);
-    //ofstream D_file;
-    //ofstream D_tot_file;
-    //if(isscattering)
-    //{
-    //if(isPW)
-    //	{
-    //		D_tot_file.open("Total_fieldPW.txt");
-    //		D_file.open("RCSPW.txt");
-    //	}
-    //	else
-    //	{
-    //		D_tot_file.open("Total_field.txt");
-    //		D_file.open("RCS.txt");
-    //	}
-
-    //	for(int i = 0;i<numberofobservationangles;i++)
-    //		{
-    //			D_file<<D[i]<<" , ";
-    //			D_tot_file<<D_tot[i]<<" ";
-
-    //		}
-    //	}
-    //else
-    //	{
-    //	D_file.open("Directivity.txt");
-    //	for(int i = 0;i<numberofobservationangles;i++)
-    //	{
-    //D_file<<D[i]<<" , ";
-    //	}
-    //}
-
-    /*cudaMemcpy(Hy,dev_Hy,sizeof(float)*(nx)*(ny),cudaMemcpyDeviceToHost);
-      for(i = 0; i < (nx+1);i++) {
-      for(j = 0; j <(ny+1);j++) {
-      cout << Ez[getCell(i,j,nx+1)] << " ";
-      }
-      cout << endl;
-      }
-      cout << endl;*/
-    //cout<<" fitness = "<<fit<<endl;
+    fit=fitness(D,numberofobservationangles*numberofexcitationangles, measurement);
+   
     error = cudaGetLastError();
-    //if(error != cudaSuccess) {
-    //	printf("%s\n",cudaGetErrorString(error));
-    //}
-    //time(&end);
-    //double dif = difftime(end,start);
-    //cout<<"It took "<<dif<<" seconds"<<endl;
-    //system("PAUSE");
+ 
 
     free(Ceze);
     free(Cezhy);
@@ -1474,15 +1296,7 @@ double FDTD_GPU(const vector<double> &arguments)
     free(Psi_hxy);
     free(kmx);
     free(D);
-    free(D_tot);
-    free(Ezip);
-    free(Ezic);
-    free(Hy_inc);
-    free(Hx_inc);
-    free(Psi_ezy_inc);
-    free(Psi_ezx_inc);
-    free(Psi_hyx_inc);
-    free(Psi_hxy_inc);
+ 
     free(hcjzxp);
     free(hcjzyp);
     free(hcjzxn);
@@ -1491,16 +1305,7 @@ double FDTD_GPU(const vector<double> &arguments)
     free(hcmyxp);
     free(hcmxyn);
     free(hcmyxn);
-    free(hcjzxp_tot);
-    free(hcjzyp_tot);
-    free(hcjzxn_tot);
-    free(hcjzyn_tot);
-    free(hcmxyp_tot);
-    free(hcmyxp_tot);
-    free(hcmxyn_tot);
-    free(hcmyxn_tot);
-    free(Cezeic);
-    free(Cezeip);
+
     free(L);
     free(N);
     //free(measurement);
@@ -1526,14 +1331,7 @@ double FDTD_GPU(const vector<double> &arguments)
     cudaFree(dev_sigma_e_z);
     cudaFree(dev_eps_r_z);
     cudaFree(dev_freq);
-    cudaFree(dev_Ezip);
-    cudaFree(dev_Ezic);
-    cudaFree(dev_Hy_inc);
-    cudaFree(dev_Hx_inc);
-    cudaFree(dev_Psi_ezy_inc);
-    cudaFree(dev_Psi_ezx_inc);
-    cudaFree(dev_Psi_hyx_inc);
-    cudaFree(dev_Psi_hxy_inc);
+
     cudaFree(cjzxp);
     cudaFree(cjzyp);
     cudaFree(cjzxn);
@@ -1542,14 +1340,7 @@ double FDTD_GPU(const vector<double> &arguments)
     cudaFree(cmyxp);
     cudaFree(cmxyn);
     cudaFree(cmyxn);
-    cudaFree(cjzxp_tot);
-    cudaFree(cjzyp_tot);
-    cudaFree(cjzxn_tot);
-    cudaFree(cjzyn_tot);
-    cudaFree(cmxyp_tot);
-    cudaFree(cmyxp_tot);
-    cudaFree(cmxyn_tot);
-    cudaFree(cmyxn_tot);
+
     cudaFree(dev_Ceze);
     cudaFree(dev_Cezhy);
     cudaFree(dev_Cezhx);
@@ -1772,7 +1563,7 @@ void Chxez_init(float*mu_r_x,float*sigma_m_x,float*Chxez)
 void eps_r_z_init(float * eps_r_z,const vector<float> &argument)
 {
     int size = nx+1;
-    float radius,tumor_radius,tumor_radius_2,tumor_radius_3;
+    float radius;//tumor_radius,tumor_radius_2,tumor_radius_3;
     for(int j =0;j<ny+1;j++)
     {
         for(int i = 0;i<nx+1;i++)
@@ -1781,35 +1572,21 @@ void eps_r_z_init(float * eps_r_z,const vector<float> &argument)
 
             eps_r_z[getCell(i,j,size)] = 1;
             radius = sqrt(pow( ((float)i-nx/2)*dx,2) + pow( ((float)j-ny/2)*dy,2));
+		//	tumor_radius = sqrt(pow( ((float)i - target_x)*dx,2) + pow( ((float)j-target_y)*dy,2));
             if(radius<=breast_radius)
             {
-                eps_r_z[getCell(i,j,size)] = (float)argument.at(getOptimizationCell(i,j));
+                eps_r_z[getCell(i,j,size)] = (float)argument.at(getOptimizationCell(i,j)); //This is the line that should be uncommented if using as forward solver
                 //eps_r_z[getCell(i,j,size)] = 10;
+				
+				//if(tumor_radius <= tumor_size)//delete this if using as forward solver
+				//{
+				//	eps_r_z[getCell(i,j,size)] = 60;
+				//}
 
             }
 
 
-            //radius = sqrt(((float)i-(target_x))*dx*((float)i-(target_x))*dx+((float)j-(target_y))*dy*((float)j-target_y)*dy);
-            //tumor_radius = sqrt(((float)i-(target_x-25))*dx*((float)i-(target_x-25))*dx+((float)j-(target_y+50))*dy*((float)j-(target_y+50))*dy);
-            //tumor_radius_2 = sqrt(((float)i-(target_x+25))*dx*((float)i-(target_x+25))*dx+((float)j-(target_y-50))*dy*((float)j-(target_y-50))*dy);
-            //tumor_radius_3 = sqrt(((float)i-(target_x-25))*dx*((float)i-(target_x-25))*dx+((float)j-(target_y-25))*dy*((float)j-(target_y-25))*dy);
-            //if(radius>breast_radius)
-            //{
-            //	eps_r_z[getCell(i,j,size)] = 1;
-
-            //}
-            //
-            //if(radius>breast_radius)
-            //{
-            //	eps_r_z[getCell(i,j,size)] = 1;
-            //	//cout<<"eps_r_z = "<<eps_r_z[getCell(i,j,size)]<<" (i,j) = ("<<i<<","<<j<<")"<<endl;
-            //}
-            //else if(i>=(nx/2-108)&&i<(nx/2+108)&&j>=(ny/2-108)&&j<(ny/2+108))
-            //{
-            //	eps_r_z[getCell(i,j,size)] = (float)argument.at(getOptimizationCell(i,j));
-            ////	cout<<"eps_r_z = "<<eps_r_z[getCell(i,j,size)]<<" (i,j) = ("<<i<<","<<j<<")"<<endl;
-            //}
-
+         
         }
     }
 }
@@ -1817,7 +1594,7 @@ void eps_r_z_init(float * eps_r_z,const vector<float> &argument)
 void sigma_e_z_init(float * sigma_e_z,float*sigma_e_pml, const vector<float> &argument)
 {
     int size = nx+1;
-    float radius;
+    float radius;//,tumor_radius;
 
 
     for(int j =0;j<ny+1;j++)
@@ -1826,32 +1603,18 @@ void sigma_e_z_init(float * sigma_e_z,float*sigma_e_pml, const vector<float> &ar
         {
             sigma_e_z[getCell(i,j,size)] = 0;
             radius = sqrt(pow( ((float)i-nx/2)*dx,2) + pow( ((float)j-ny/2)*dy,2));
+			//tumor_radius = sqrt(pow( ((float)i - target_x)*dx,2) + pow( ((float)j-target_y)*dy,2));
             if(radius<=breast_radius)
             {
                 sigma_e_z[getCell(i,j,size)] = (float)argument.at(getOptimizationCell(i,j)+9*9);
-                //eps_r_z[getCell(i,j,size)] = 10;
+				//sigma_e_z[getCell(i,j,size)] = 0.15;
+				//if(tumor_radius <= tumor_size)//delete this if using as forward solver
+				//{
+				//	sigma_e_z[getCell(i,j,size)] = 0.7;
+				//}
 
             }
-            //if(sqrt(pow((float)i-f2x,2)*dx+pow((float)j-f2y,2)*dy)<(100*dx))
-            //{
-            //	sigma_e_z[getCell(i,j,size)] = 0.00;
-            //}
-            //else
-            //{
-            //	sigma_e_z[getCell(i,j,size)] = 0;
-            //}
-            //	radius = sqrt(((float)i-nx/2)*dx*((float)i-nx/2)*dx+((float)j-ny/2)*dy*((float)j-ny/2)*dy);
-            //if(radius>breast_radius)
-            //{
-            //	sigma_e_z[getCell(i,j,size)] = 0;
-            //	//cout<<"sigma_e_z = "<<sigma_e_z[getCell(i,j,size)]<<" (i,j) = ("<<i<<","<<j<<")"<<endl;
-            //}
-            //else if(i>=(nx/2-108)&&i<(nx/2+108)&&j>=(ny/2-108)&&j<(ny/2+108))
-            //{
-            //	sigma_e_z[getCell(i,j,size)] = (float)argument.at(getOptimizationCell(i,j)+9*9);//total of 81 optimization cells
-            ////	cout<<"sigma_e_z = "<<sigma_e_z[getCell(i,j,size)]<<" (i,j) = ("<<i<<","<<j<<")"<<endl;
-            //}
-
+     
         }
     }
 }
