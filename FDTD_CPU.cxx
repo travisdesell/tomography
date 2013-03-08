@@ -932,7 +932,8 @@ double FDTD_CPU(const vector<double> &arguments)
 		E_field_update(&i,Ez,Hy,Hx,Psi_ezx,aex,aex,bex,bex,Psi_ezy,kex,Cezhy,Cezhy,Ceze,dev_Cezeip,dev_Cezeic);
 	
 		calculate_JandM(&freq, &i,Ez,Hy,Hx,hcjzxp,hcjzyp,hcjzxn,hcjzyn,hcmxyp,hcmyxp,hcmxyn,hcmyxn);
-	cout<<Ez[getCell(nx/2,ny/2,nx+1)]<<std::endl;
+
+//	    cout << "[" << i << "/" << number_of_time_steps << "] " << Ez[getCell(nx/2,ny/2,nx+1)] << std::endl;
 	}
 
 
@@ -996,7 +997,9 @@ double FDTD_CPU(const vector<double> &arguments)
 	free(dev_Cezeic);
 	free(L);
 	free(N);
-	system("pause");
+
+//	system("pause");
+
 	return (double)fit;
 }
  void scattered_parameter_init(float*eps_r_z,float*sigma_e_z,float*Cezeic,float*Cezeip)

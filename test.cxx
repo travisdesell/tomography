@@ -12,9 +12,12 @@
 #include <string>
 #include <stdint.h>
 
+#include "mpi.h"
+
 #include "examples/benchmarks.hxx"
 
 #include "asynchronous_algorithms/particle_swarm.hxx"
+#include "mpi/mpi_particle_swarm.hxx"
 #include "asynchronous_algorithms/differential_evolution.hxx"
 #include "asynchronous_algorithms/asynchronous_newton_method.hxx"
 
@@ -24,6 +27,7 @@
 using namespace std;
 
 int main(int argc, char **argv) {
+    MPI_Init(&argc, &argv);
     vector<string> arguments(argv, argv + argc);
 
     /*
@@ -68,11 +72,11 @@ int main(int argc, char **argv) {
     string search_type;
     get_argument(arguments, "--search_type", true, search_type);
     if (search_type.compare("ps") == 0) {
-        ParticleSwarm ps(min_bound, max_bound, arguments);
+        ParticleSwarmMPI ps(min_bound, max_bound, arguments);
 #ifdef CUDA
-        ps.iterate(FDTD_GPU);
+        ps.go(FDTD_GPU);
 #else
-        ps.iterate(FDTD_CPU);
+        ps.go(FDTD_CPU);
 #endif
 
     } else if (search_type.compare("de") == 0) {
