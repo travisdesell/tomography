@@ -37,9 +37,11 @@ include_directories (${Boost_INCLUDE_DIR})
 add_executable(fdtd_cpu test FDTD_CPU)
 target_link_libraries(fdtd_cpu undvc_common asynchronous_algorithms synchronous_algorithms tao_util)
 
-cuda_add_executable(fdtd_gpu test FDTD_GPU.cu)
-target_link_libraries(fdtd_gpu undvc_common asynchronous_algorithms synchronous_algorithms tao_util)
-set_target_properties(fdtd_gpu PROPERTIES COMPILE_DEFINITIONS CUDA)
+if (CUDA_FOUND) 
+    cuda_add_executable(fdtd_gpu test FDTD_GPU.cu)
+    target_link_libraries(fdtd_gpu undvc_common asynchronous_algorithms synchronous_algorithms tao_util)
+    set_target_properties(fdtd_gpu PROPERTIES COMPILE_DEFINITIONS CUDA)
+endif (CUDA_FOUND)
 
 
 #if (MYSQL_FOUND)
