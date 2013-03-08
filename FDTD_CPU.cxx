@@ -955,12 +955,12 @@ double FDTD_CPU(const vector<double> &arguments)
 	for(int i = 0;i<numberofobservationangles;i++)
 	{
 		Phi = 360*(float)i/numberofobservationangles;
-		cout<<"D "<<D[i]<<" Phi = "<<Phi<<endl;
+//		cout<<"D "<<D[i]<<" Phi = "<<Phi<<endl;
 	}
 
 	float fit;
 	fit=fitness(D,numberofobservationangles, measurement);
-	cout<<" fitness = "<<fit<<endl;
+//	cout<<" fitness = "<<fit<<endl;
 
 	free(Ceze);
 	free(Cezhy);

@@ -6,7 +6,7 @@ set (TOMOGRAPHY_VERSION_MINOR 0)
 
 #set(PLATFORM 64)
  
-#set(CMAKE_CXX_FLAGS "-g -Wall -O3 -funroll-loops -msse3")
+set(CMAKE_CXX_FLAGS "-g -Wall -O3 -funroll-loops -msse3")
 
 #turn this on for shale
 #set(BOOST_ROOT /home/tdesell/boost-build)
