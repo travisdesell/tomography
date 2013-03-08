@@ -54,6 +54,10 @@ step 4:
     You can track the job status with:
         qstat -a
 
+    For more information on the job submission script and things like that,
+    see the shale instructions:
+    http://und.edu/research/computational-research-center/shale-sub-scripts.cfm
+
     It will also email you when your job starts running and when it completes.  The output will be in:
     ~/tomography/build/hmmc_out.txt
     and
