@@ -6,7 +6,13 @@ set (TOMOGRAPHY_VERSION_MINOR 0)
 
 #set(PLATFORM 64)
  
-set(CMAKE_CXX_FLAGS "-g -Wall -O3 -funroll-loops -ftree-vectorize -msse3")
+#set(CMAKE_CXX_FLAGS "-g -Wall -O3 -funroll-loops -msse3")
+
+#turn this on for shale
+#set(BOOST_ROOT /home/tdesell/boost-build)
+#set(CMAKE_INCLUDE_PATH /home/tdesell/boost-build/ ${CMAKE_INCLUDE_PATH})
+#set(CMAKE_LIBRARY_PATH /home/tdesell/boost-build/ ${CMAKE_LIBRARY_PATH} /opt/local/lib)
+
 
 set(CMAKE_LIBRARY_PATH ${CMAKE_LIBRARY_PATH} /opt/local/lib)
 
@@ -24,6 +30,12 @@ find_package(MySQL)
 # packages                                                                                                                                                                                                 
 find_package(CUDA)
 
+#The following two lines will use mvapich2 on hodor
+set (MPI_COMPILER "/opt/mvapich2-x/gnu/bin/mpic++")
+set (MPI_INCLUDE_PATH "/opt/mvapich2-x/gnu/include")
+
+find_package(MPI)
+
 # nvcc flags                                                                                                                                                                                               
 add_subdirectory(tao)
 
@@ -33,13 +45,15 @@ add_subdirectory(tao)
 include_directories (${PROJECT_SOURCE_DIR}/tao)
 include_directories (${Boost_INCLUDE_DIR})
 
-
+include_directories (${MPI_INCLUDE_PATH})
 add_executable(fdtd_cpu test FDTD_CPU)
-target_link_libraries(fdtd_cpu undvc_common asynchronous_algorithms synchronous_algorithms tao_util)
+target_link_libraries(fdtd_cpu undvc_common asynchronous_algorithms synchronous_algorithms tao_util mpi_algorithms)
 
 if (CUDA_FOUND) 
+#use this for shale
+#cuda_add_executable(fdtd_gpu test FDTD_GPU.cu OPTIONS --compiler-bindir mpicxx)
     cuda_add_executable(fdtd_gpu test FDTD_GPU.cu)
-    target_link_libraries(fdtd_gpu undvc_common asynchronous_algorithms synchronous_algorithms tao_util)
+    target_link_libraries(fdtd_gpu undvc_common asynchronous_algorithms synchronous_algorithms tao_util mpi_algorithms)
     set_target_properties(fdtd_gpu PROPERTIES COMPILE_DEFINITIONS CUDA)
 endif (CUDA_FOUND)
 
