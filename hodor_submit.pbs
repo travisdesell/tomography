@@ -1,0 +1,10 @@
+#PBS -S /bin/bash
+#PBS -N tomography_ps
+#PBS -o tomography_out.txt
+#PBS -e tomography_error.txt
+#PBS -m abe
+#PBS -M tdesell@cs.und.edu
+#PBS -l nodes=2:ppn=8,walltime=0:03:00,naccesspolicy=singlenode
+###PBS -l qos=priority
+cd ~/tomography/build
+/opt/mvapich2-x/gnu/bin/mpiexec -machinefile ~/hodor_nodes_mvapich -np 16 ./fdtd_cpu --search_type ps
