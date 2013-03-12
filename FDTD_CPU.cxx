@@ -1,5 +1,4 @@
 
-
 //#define GLEW_STATIC
 //#pragma comment(lib,"glew32.lib")
 //#include <windows.h>
@@ -54,6 +53,7 @@
 #define npml 2
 #define kmax 10
 #define isPW 1
+#define numberofexcitationangles 4
 #define isscattering 1
 #define HANDLE_ERROR( err ) err
 #define sigma_max_pml (3/(200*PI*dx))
@@ -341,6 +341,19 @@ int CPUgetyfromthreadIdNF2FF(int index)
 	}
 	
 }
+
+void float_Init(float* array, int size)
+{
+        for(int i =0;i<size;i++)
+        {
+
+                array[i] = 0.0;
+        }
+
+
+}
+
+
   float fwf(float timestep,float x, float y,float Phi_inc,float l)
 {
 
@@ -417,7 +430,7 @@ int CPUgetyfromthreadIdNF2FF(int index)
 }
 
 
- void E_field_update(int *i,float*dev_Ez,float*dev_Hy,float*dev_Hx,float*dev_Psi_ezx,float*dev_aex,float*dev_aey,float*dev_bex,float*dev_bey,float*dev_Psi_ezy,float*kex,float*Cezhy,float*Cezhx,float*Ceze,float*Cezeip,float*Cezeic)
+ void E_field_update(int *i,float*dev_Ez,float*dev_Hy,float*dev_Hx,float*dev_Psi_ezx,float*dev_aex,float*dev_aey,float*dev_bex,float*dev_bey,float*dev_Psi_ezy,float*kex,float*Cezhy,float*Cezhx,float*Ceze,float*Cezeip,float*Cezeic,float Phi)
 {
 	for( int x = 0; x<(nx+1);x++)
 	{
@@ -445,8 +458,8 @@ int CPUgetyfromthreadIdNF2FF(int index)
 						
 						buffer_Ez = Ceze[dgetCell(x,y,nx+1)]*dev_Ez[dgetCell(x,y,nx+1)]+Cezhy[dgetCell(x,y,nx+1)]*(dev_Hy[dgetCell(x,y,nx)]-dev_Hy[dgetCell(x-1,y,nx)])
 						-Cezhx[dgetCell(x,y,nx+1)]*(dev_Hx[dgetCell(x,y,nx)]-dev_Hx[dgetCell(x,y-1,nx)])
-						+Cezeic[dgetCell(x,y,nx+1)]*fwf((float)(*i)+0.5,x,y,0,l0)
-						+Cezeip[dgetCell(x,y,nx+1)]*fwf((float)(*i)-0.5,x,y,0,l0);
+						+Cezeic[dgetCell(x,y,nx+1)]*fwf((float)(*i)+0.5,x,y,Phi,-breast_radius)
+						+Cezeip[dgetCell(x,y,nx+1)]*fwf((float)(*i)-0.5,x,y,Phi,-breast_radius);
 						
 					}
 					else
@@ -921,45 +934,69 @@ double FDTD_CPU(const vector<double> &arguments)
 	
 	scattered_parameter_init(eps_r_z,sigma_e_z,dev_Cezeic,dev_Cezeip);
 
-
-	float test_Ez;
-	
-	/* The calculation part! */
-	for(int i=0;i<number_of_time_steps;i++)
-	{
-		H_field_update(Hy,Hx,Ez,bmx,Psi_hyx,amx,bmx,amx,Psi_hxy,kmx);
-	
-		E_field_update(&i,Ez,Hy,Hx,Psi_ezx,aex,aex,bex,bex,Psi_ezy,kex,Cezhy,Cezhy,Ceze,dev_Cezeip,dev_Cezeic);
-	
-		calculate_JandM(&freq, &i,Ez,Hy,Hx,hcjzxp,hcjzyp,hcjzxn,hcjzyn,hcmxyp,hcmyxp,hcmxyn,hcmyxn);
-
-//	    cout << "[" << i << "/" << number_of_time_steps << "] " << Ez[getCell(nx/2,ny/2,nx+1)] << std::endl;
-	}
-
-
 	cuComplex *L,*N;
 	
 	L  = (cuComplex*)malloc(sizeof(cuComplex)*size_NF2FF_total);
 	N = (cuComplex*)malloc(sizeof(cuComplex)*size_NF2FF_total);
 	
+    float measurement[numberofobservationangles*numberofexcitationangles] = {0.544912 , 0.518606 , 0.439233 , 0.330533 , 0.219116 , 0.135115 , 0.0923969 , 0.0774134 , 0.0740459 , 0.0739238 , 0.0660047 , 0.0465372 , 0.0248307 , 0.00913681 , 0.00186162 , 0.0038402 , 0.0130785 , 0.0238094 , 0.0312918 , 0.035705 , 0.0388307 , 0.039513 , 0.0368443 , 0.0338221 , 0.0324815 , 0.0305907 , 0.0270149 , 0.0239178 , 0.0224438 , 0.021849 , 0.0217346 , 0.0222152 , 0.023146 , 0.0245181 , 0.0267161 , 0.0286964 , 0.0276803 , 0.0235098 , 0.0197177 , 0.0183168 , 0.0196998 , 0.0261493 , 0.0375584 , 0.0479223 , 0.0511598 , 0.0461443 , 0.035713 , 0.0249863 , 0.0203708 , 0.0260456 , 0.0395441 , 0.054163 , 0.0660136 , 0.0763823 , 0.0935922 , 0.132053 , 0.201299 , 0.299247 , 0.410792 , 0.504467 ,
+0.0490085 , 0.0278468 , 0.0123693 , 0.00899709 , 0.0196632 , 0.0401112 , 0.0623734 , 0.0809561 , 0.096057 , 0.113814 , 0.145125 , 0.200388 , 0.283438 , 0.386362 , 0.486139 , 0.549594 , 0.547993 , 0.475775 , 0.358033 , 0.230962 , 0.118935 , 0.039843 , 0.00700227 , 0.0112335 , 0.0300356 , 0.0494414 , 0.0605159 , 0.0585777 , 0.0503323 , 0.045704 , 0.0474064 , 0.0523123 , 0.0558987 , 0.0545722 , 0.0475098 , 0.0366045 , 0.0248037 , 0.0155752 , 0.0115322 , 0.0127167 , 0.0176523 , 0.0243556 , 0.0310764 , 0.037444 , 0.0432292 , 0.0469609 , 0.0471761 , 0.0435653 , 0.0369347 , 0.0293987 , 0.0235478 , 0.0206039 , 0.020754 , 0.0247748 , 0.0336772 , 0.047007 , 0.0618746 , 0.0734482 , 0.0763332 , 0.0674785 ,
+0.0463129 , 0.0448933 , 0.0398454 , 0.0319834 , 0.0239428 , 0.0174267 , 0.0129155 , 0.0116624 , 0.0154122 , 0.0247183 , 0.0376821 , 0.0494142 , 0.0552493 , 0.0544909 , 0.0501016 , 0.0466044 , 0.047395 , 0.0522298 , 0.0576919 , 0.0588555 , 0.0504011 , 0.0311956 , 0.0107719 , 0.00755493 , 0.0394798 , 0.116099 , 0.232324 , 0.36478 , 0.478314 , 0.541685 , 0.541186 , 0.484009 , 0.391878 , 0.291105 , 0.204554 , 0.145352 , 0.113254 , 0.0973423 , 0.0835717 , 0.0637299 , 0.0397899 , 0.0189781 , 0.00814281 , 0.0118845 , 0.0291142 , 0.0513172 , 0.0680543 , 0.0744519 , 0.0718442 , 0.0622228 , 0.0473734 , 0.0329352 , 0.0245156 , 0.0212818 , 0.0204027 , 0.0228792 , 0.0298908 , 0.0380399 , 0.0432513 , 0.0455291 ,
+0.0469428 , 0.049667 , 0.0453111 , 0.0370016 , 0.0278006 , 0.0201062 , 0.0173687 , 0.020228 , 0.0242543 , 0.0264199 , 0.0275476 , 0.027771 , 0.0262174 , 0.0237332 , 0.0219206 , 0.0212424 , 0.0214967 , 0.0226845 , 0.0248514 , 0.0275874 , 0.0300439 , 0.0318892 , 0.0340621 , 0.0369823 , 0.0388068 , 0.0379494 , 0.0350817 , 0.030462 , 0.0230471 , 0.0133404 , 0.00457234 , 0.00152755 , 0.00874873 , 0.0260448 , 0.0463293 , 0.0633742 , 0.0751071 , 0.0775575 , 0.0756597 , 0.0916989 , 0.141021 , 0.22185 , 0.328433 , 0.44207 , 0.524772 , 0.544711 , 0.498668 , 0.407614 , 0.29953 , 0.199594 , 0.128704 , 0.0929922 , 0.0772499 , 0.0654169 , 0.0536587 , 0.0399619 , 0.0255793 , 0.0193488 , 0.0253531 , 0.0373143 ,
+};//I've just hardcoded the measurement values. 
+	
 	CJ_Init(L,size_NF2FF_total);
 	CJ_Init(N,size_NF2FF_total);
+	float test_Ez;
+	float Phi;
+	float fit =0;
+	/* The calculation part! */
+	for(int Phi_index = 0; Phi_index<numberofexcitationangles;Phi_index++)
+	{
+		Phi = (float)Phi_index*2*PI/numberofexcitationangles;
+	
+	for(int i=0;i<number_of_time_steps;i++)
+	{
+		H_field_update(Hy,Hx,Ez,bmx,Psi_hyx,amx,bmx,amx,Psi_hxy,kmx);
+	
+		E_field_update(&i,Ez,Hy,Hx,Psi_ezx,aex,aex,bex,bex,Psi_ezy,kex,Cezhy,Cezhy,Ceze,dev_Cezeip,dev_Cezeic,Phi);
+	
+		calculate_JandM(&freq, &i,Ez,Hy,Hx,hcjzxp,hcjzyp,hcjzxn,hcjzyn,hcmxyp,hcmyxp,hcmxyn,hcmyxn);
+
+//	    cout << "[" << i << "/" << number_of_time_steps << "] " << Ez[getCell(nx/2,ny/2,nx+1)] << std::endl;
+	}
+	
 	
 	N2FPostProcess(D, freq,N,L,hcjzxp,hcjzyp,hcjzxn,hcjzyn,hcmxyp,hcmyxp,hcmxyn,hcmyxn);
+	for(int angle_index=0;angle_index < numberofobservationangles;angle_index++)
+	{
+		fit -=pow(D[angle_index]-measurement[angle_index+Phi_index*numberofobservationangles],2)/pow(measurement[angle_index+Phi_index*numberofobservationangles],2);
+		
+	}
 	CJ_Init(L,size_NF2FF_total);
 	CJ_Init(N,size_NF2FF_total);
-	float measurement[numberofobservationangles] = {0.38446 , 0.362389 , 0.309065 , 0.237687 , 0.162638 , 0.101565 , 0.0642376 , 0.0457471 , 0.0406768 , 0.0462104 , 0.0534992 , 0.0586805 , 0.0681197 , 0.0845823 , 0.105639 , 0.130494 , 0.15567 , 0.169704 , 0.162106 , 0.135797 , 0.102823 , 0.0717831 , 0.0478674 , 0.0364377 , 0.0385978 , 0.0501895 , 0.067232 , 0.0870665 , 0.10573 , 0.118834 , 0.123803 , 0.11963 , 0.106446 , 0.087042 , 0.0667677 , 0.0498503 , 0.0385427 , 0.0365824 , 0.0478755 , 0.0714402 , 0.102585 , 0.135752 , 0.161719 , 0.169557 , 0.156789 , 0.13172 , 0.104872 , 0.0826252 , 0.0674893 , 0.0588946 , 0.0528211 , 0.0459529 , 0.0410625 , 0.0449233 , 0.0647455 , 0.105435 , 0.165446 , 0.237711 , 0.310644 , 0.365682 };
-
-	float Phi;
-
-	for(int i = 0;i<numberofobservationangles;i++)
-	{
-		Phi = 360*(float)i/numberofobservationangles;
-//		cout<<"D "<<D[i]<<" Phi = "<<Phi<<endl;
+	float_Init(Hy,(nx*ny));
+	float_Init(Hx,nx*ny);
+	float_Init(Ez,(nx+1)*(ny+1));
+	float_Init(Psi_hyx,20*ny);
+	float_Init(Psi_hxy,20*nx);
+	float_Init(Psi_ezx,20*nx);
+	float_Init(Psi_ezy,20*nx);
+	CJ_Init(hcjzyp,size_cjzy);//C**** coefficients are for surface current/ field duality for NF2FF processing.
+	CJ_Init(hcjzyn,size_cjzy);
+	CJ_Init(hcjzxp,size_cjzx);
+	CJ_Init(hcjzxn,size_cjzx);
+	CJ_Init(hcmxyn,size_cjzy);
+	CJ_Init(hcmxyp,size_cjzy);
+	CJ_Init(hcmyxp,size_cjzx);
+	CJ_Init(hcmyxn,size_cjzx);
 	}
+	
 
-	float fit;
-	fit=fitness(D,numberofobservationangles, measurement);
+
+	
+	
+
 //	cout<<" fitness = "<<fit<<endl;
 
 	free(Ceze);
@@ -1632,3 +1669,4 @@ void CJ_Init(cuComplex * cjzyn,int size)
 		cjzyn[i] = nullComplex;
 	}
 }
+
