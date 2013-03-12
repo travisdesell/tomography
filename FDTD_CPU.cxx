@@ -1,4 +1,3 @@
-
 //#define GLEW_STATIC
 //#pragma comment(lib,"glew32.lib")
 //#include <windows.h>
@@ -970,7 +969,7 @@ double FDTD_CPU(const vector<double> &arguments)
 	N2FPostProcess(D, freq,N,L,hcjzxp,hcjzyp,hcjzxn,hcjzyn,hcmxyp,hcmyxp,hcmxyn,hcmyxn);
 	for(int angle_index=0;angle_index < numberofobservationangles;angle_index++)
 	{
-		fit -=pow(D[angle_index]-measurement[angle_index+Phi_index*numberofobservationangles],2)/pow(measurement[angle_index+Phi_index*numberofobservationangles],2);
+		fit -=pow(D[angle_index]-measurement[angle_index+Phi_index*numberofobservationangles],2)/(numberofexcitationangles*pow(measurement[angle_index+Phi_index*numberofobservationangles],2));
 		
 	}
 	CJ_Init(L,size_NF2FF_total);
