@@ -1,8 +1,8 @@
 #ifdef CUDA
 #include "FDTD_GPU.cuh"
-#else
-#include "FDTD_CPU.h"
 #endif
+
+#include "FDTD_CPU.h"
 
 #include <cmath>
 #include <vector>
@@ -73,8 +73,23 @@ int main(int argc, char **argv) {
     get_argument(arguments, "--search_type", true, search_type);
     if (search_type.compare("ps") == 0) {
         ParticleSwarmMPI ps(min_bound, max_bound, arguments);
+
 #ifdef CUDA
-        ps.go(FDTD_GPU);
+        int max_rank;
+        MPI_Comm_size(MPI_COMM_WORLD, &max_rank);
+
+        if (max_rank == 33) {
+            int device_assignments[] = {-1, 0, 1, -1, -1, -1, -1, -1, -1,
+                                            0, 1, -1, -1, -1, -1, -1, -1,
+                                            0, 1, -1, -1, -1, -1, -1, -1,
+                                            0, 1, -1, -1, -1, -1, -1, -1};
+
+            ps.go(FDTD_CPU, FDTD_GPU, device_assignments);
+        } else if (max_rank == 9) {
+            int device_assignments[] = {-1, 0, 1, 0, 1, 0, 1, 0, 1};
+
+            ps.go(FDTD_CPU, FDTD_GPU, device_assignments);
+        }
 #else
         ps.go(FDTD_CPU);
 #endif
