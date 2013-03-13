@@ -26,6 +26,27 @@
 
 #include "FDTD_common.hxx"
 
+void __cudaCheck(cudaError err, const char* file, const int line);
+#define cudaCheck(err) __cudaCheck (err, __FILE__, __LINE__)
+
+void __cudaCheckLastError(const char* errorMessage, const char* file, const int line);
+#define cudaCheckLastError(msg) __cudaCheckLastError (msg, __FILE__, __LINE__)
+
+void __cudaCheck(cudaError err, const char *file, const int line) {
+    if (cudaSuccess != err) {
+        fprintf(stderr, "%s(%i) : CUDA Runtime API error %d: %s.\n", file, line, (int)err, cudaGetErrorString( err ) );
+        exit(-1);
+    }
+}
+
+void __cudaCheckLastError(const char *errorMessage, const char *file, const int line) {
+    cudaError_t err = cudaGetLastError();
+    if (cudaSuccess != err) {
+        fprintf(stderr, "%s(%i) : getLastCudaError() CUDA error : %s : (%d) %s.\n", file, line, errorMessage, (int)err, cudaGetErrorString( err ) );
+        exit(-1);
+    }
+}
+
 //#include <unistd.h>
 //const cuComplex jcmpx (0.0, 1.0);
 /*static void HandleError( cudaError_t err, const char *file,  int line ) {
@@ -978,83 +999,81 @@ double FDTD_GPU(const vector<double> &arguments) {
 
     cuComplex *cjzxp, *cjzyp, *cjzxn, *cjzyn, *cmxyp, *cmyxp, *cmxyn, *cmyxn;
 
-    float *dev_Cezeic, *dev_Cezeip;
-    float *dev_sigma_e_z, *dev_eps_r_z;
     float *dev_freq, *dev_Phi;
     float *dev_Ceze, *dev_Cezhy, *dev_Cezhx, *dev_bex, *dev_aex, *dev_bmx, *dev_amx, *dev_kex, *dev_kmx;//dev_Cezj if using loop current source
     float *dev_Ez, *dev_Hy, *dev_Hx;
 
     float *dev_Psi_ezy, *dev_Psi_ezx, *dev_Psi_hyx, *dev_Psi_hxy;
 
-    cudaMalloc(&dev_eps_r_z,sizeof(float)*(nx+1)*(ny+1));
-    cudaMalloc(&dev_sigma_e_z,sizeof(float)*(nx+1)*(ny+1));
-    cudaMalloc(&dev_Cezeic,sizeof(float)*(nx+1)*(ny+1));
-    cudaMalloc(&dev_Cezeip,sizeof(float)*(nx+1)*(ny+1));
-    cudaMemcpy(dev_eps_r_z,eps_r_z,sizeof(float)*(nx+1)*(ny+1),cudaMemcpyHostToDevice);
-    cudaMemcpy(dev_sigma_e_z,sigma_e_z,sizeof(float)*(nx+1)*(ny+1),cudaMemcpyHostToDevice);
+    float *dev_Cezeic, *dev_Cezeip;
+    float *dev_sigma_e_z, *dev_eps_r_z;
+
+
+    cudaCheck( cudaMalloc(&dev_eps_r_z,sizeof(float)*(nx+1)*(ny+1)) );
+    cudaCheck( cudaMalloc(&dev_sigma_e_z,sizeof(float)*(nx+1)*(ny+1)) );
+    cudaCheck( cudaMalloc(&dev_Cezeic,sizeof(float)*(nx+1)*(ny+1)) );
+    cudaCheck( cudaMalloc(&dev_Cezeip,sizeof(float)*(nx+1)*(ny+1)) );
+    cudaCheck( cudaMemcpy(dev_eps_r_z,eps_r_z,sizeof(float)*(nx+1)*(ny+1),cudaMemcpyHostToDevice) );
+    cudaCheck( cudaMemcpy(dev_sigma_e_z,sigma_e_z,sizeof(float)*(nx+1)*(ny+1),cudaMemcpyHostToDevice) );
+
     scattered_parameter_init<<<grid,block>>>(dev_eps_r_z,dev_sigma_e_z,dev_Cezeic,dev_Cezeip);
+    cudaCheckLastError("scattered_parameter_init kernel failed");
+
     //float *Cezeic = (float*)malloc((sizeof(float))*(nx+1)*(ny+1));
     // float *Cezeip = (float*)malloc((sizeof(float))*(nx+1)*(ny+1));
     //cudaMemcpy(Cezeic,dev_Cezeic,sizeof(float)*(nx+1)*(ny+1),cudaMemcpyDeviceToHost);
     //cudaMemcpy(Cezeip,dev_Cezeip,sizeof(float)*(nx+1)*(ny+1),cudaMemcpyDeviceToHost);
 
 
-    cudaMalloc(&dev_Phi,sizeof(float));
-    cudaMalloc(&dev_kex,sizeof(float)*10);
-    cudaMalloc(&dev_kmx,sizeof(float)*10);
-    cudaMalloc(&dev_Ez,sizeof(float)*(nx+1)*(ny+1));
-    cudaMalloc(&dev_Hy,sizeof(float)*nx*ny);
-    cudaMalloc(&dev_freq ,sizeof(float));
-    cudaMalloc(&dev_Hx,sizeof(float)*nx*ny);
-    cudaMalloc(&dev_Psi_ezy,sizeof(float)*20*(nx+1));
-    cudaMalloc(&dev_Psi_ezx,sizeof(float)*20*(ny+1));
-    cudaMalloc(&dev_Psi_hyx,sizeof(float)*20*(ny));
-    cudaMalloc(&dev_Psi_hxy,sizeof(float)*20*(nx));
+    cudaCheck(cudaMalloc(&dev_Phi,sizeof(float)));
+    cudaCheck(cudaMalloc(&dev_kex,sizeof(float)*10));
+    cudaCheck(cudaMalloc(&dev_kmx,sizeof(float)*10));
+    cudaCheck(cudaMalloc(&dev_Ez,sizeof(float)*(nx+1)*(ny+1)));
+    cudaCheck(cudaMalloc(&dev_Hy,sizeof(float)*nx*ny));
+    cudaCheck(cudaMalloc(&dev_freq ,sizeof(float)));
+    cudaCheck(cudaMalloc(&dev_Hx,sizeof(float)*nx*ny));
+    cudaCheck(cudaMalloc(&dev_Psi_ezy,sizeof(float)*20*(nx+1)));
+    cudaCheck(cudaMalloc(&dev_Psi_ezx,sizeof(float)*20*(ny+1)));
+    cudaCheck(cudaMalloc(&dev_Psi_hyx,sizeof(float)*20*(ny)));
+    cudaCheck(cudaMalloc(&dev_Psi_hxy,sizeof(float)*20*(nx)));
 
-    cudaMalloc(&cjzxp,sizeof(cuComplex)*size_NF2FF_total);
-    cudaMalloc(&cjzyp,sizeof(cuComplex)*size_NF2FF_total);
-    cudaMalloc(&cjzxn,sizeof(cuComplex)*size_NF2FF_total);
-    cudaMalloc(&cjzyn,sizeof(cuComplex)*size_NF2FF_total);
-    cudaMalloc(&cmxyp,sizeof(cuComplex)*size_NF2FF_total);
-    cudaMalloc(&cmxyn,sizeof(cuComplex)*size_NF2FF_total);
-    cudaMalloc(&cmyxp,sizeof(cuComplex)*size_NF2FF_total);
-    cudaMalloc(&cmyxn,sizeof(cuComplex)*size_NF2FF_total);
+    cudaCheck(cudaMalloc(&cjzxp,sizeof(cuComplex)*size_NF2FF_total));
+    cudaCheck(cudaMalloc(&cjzyp,sizeof(cuComplex)*size_NF2FF_total));
+    cudaCheck(cudaMalloc(&cjzxn,sizeof(cuComplex)*size_NF2FF_total));
+    cudaCheck(cudaMalloc(&cjzyn,sizeof(cuComplex)*size_NF2FF_total));
+    cudaCheck(cudaMalloc(&cmxyp,sizeof(cuComplex)*size_NF2FF_total));
+    cudaCheck(cudaMalloc(&cmxyn,sizeof(cuComplex)*size_NF2FF_total));
+    cudaCheck(cudaMalloc(&cmyxp,sizeof(cuComplex)*size_NF2FF_total));
+    cudaCheck(cudaMalloc(&cmyxn,sizeof(cuComplex)*size_NF2FF_total));
 
-    cudaMemcpy(dev_freq,&freq,sizeof(float),cudaMemcpyHostToDevice);
+    cudaCheck(cudaMemcpy(dev_freq,&freq,sizeof(float),cudaMemcpyHostToDevice));
 
-    cudaMalloc(&dev_bex,sizeof(float)*10);
-    cudaMalloc(&dev_bmx,sizeof(float)*10);
-    cudaMalloc(&dev_amx,sizeof(float)*10);
-    cudaMalloc(&dev_aex,sizeof(float)*10);
-    cudaMalloc(&dev_Ceze,sizeof(float)*(nx+1)*(ny+1));
-    cudaMalloc(&dev_Cezhy,sizeof(float)*(nx+1)*(ny+1));
+    cudaCheck(cudaMalloc(&dev_bex,sizeof(float)*10));
+    cudaCheck(cudaMalloc(&dev_bmx,sizeof(float)*10));
+    cudaCheck(cudaMalloc(&dev_amx,sizeof(float)*10));
+    cudaCheck(cudaMalloc(&dev_aex,sizeof(float)*10));
+    cudaCheck(cudaMalloc(&dev_Ceze,sizeof(float)*(nx+1)*(ny+1)));
+    cudaCheck(cudaMalloc(&dev_Cezhy,sizeof(float)*(nx+1)*(ny+1)));
 
 
     //cudaMalloc(&dev_Cezj,sizeof(float)*(nx+1)*(ny+1)); if using current source
 
-    error = cudaGetLastError();
-    if (error != cudaSuccess) {
-        printf("%s\n",cudaGetErrorString(error));
-    }
     Field_reset<<<grid,block>>>(dev_Ez, dev_Hy, dev_Hx, dev_Psi_ezy, dev_Psi_ezx, dev_Psi_hyx, dev_Psi_hxy,cjzyn,cjzxp,cjzyp,cjzxn,cmxyn,cmyxp,cmxyp,cmyxn);
+    cudaCheckLastError("Field_reset kernel failed");
     //Field_reset is also good for making all these values zero.
 
 
-    cudaMemcpy(dev_kex,kex,sizeof(float)*10,cudaMemcpyHostToDevice);
-    cudaMemcpy(dev_kmx,kmx,sizeof(float)*10,cudaMemcpyHostToDevice);
-    cudaMemcpy(dev_aex,aex,sizeof(float)*10,cudaMemcpyHostToDevice);
-    cudaMemcpy(dev_bex,bex,sizeof(float)*10,cudaMemcpyHostToDevice);
-    cudaMemcpy(dev_bmx,bmx,sizeof(float)*10,cudaMemcpyHostToDevice);
-    cudaMemcpy(dev_amx,amx,sizeof(float)*10,cudaMemcpyHostToDevice);
-    cudaMemcpy(dev_Ceze,Ceze,sizeof(float)*(nx+1)*(ny+1),cudaMemcpyHostToDevice);
-    cudaMemcpy(dev_Cezhy,Cezhy,sizeof(float)*(nx+1)*(ny+1),cudaMemcpyHostToDevice);
-    error = cudaGetLastError();
-    if(error != cudaSuccess) {
-        printf("%s\n",cudaGetErrorString(error));
-    }
+    cudaCheck(cudaMemcpy(dev_kex,kex,sizeof(float)*10,cudaMemcpyHostToDevice));
+    cudaCheck(cudaMemcpy(dev_kmx,kmx,sizeof(float)*10,cudaMemcpyHostToDevice));
+    cudaCheck(cudaMemcpy(dev_aex,aex,sizeof(float)*10,cudaMemcpyHostToDevice));
+    cudaCheck(cudaMemcpy(dev_bex,bex,sizeof(float)*10,cudaMemcpyHostToDevice));
+    cudaCheck(cudaMemcpy(dev_bmx,bmx,sizeof(float)*10,cudaMemcpyHostToDevice));
+    cudaCheck(cudaMemcpy(dev_amx,amx,sizeof(float)*10,cudaMemcpyHostToDevice));
+    cudaCheck(cudaMemcpy(dev_Ceze,Ceze,sizeof(float)*(nx+1)*(ny+1),cudaMemcpyHostToDevice));
+    cudaCheck(cudaMemcpy(dev_Cezhy,Cezhy,sizeof(float)*(nx+1)*(ny+1),cudaMemcpyHostToDevice));
 
     int *dev_i;
-    cudaMalloc(&dev_i,sizeof(int));
+    cudaCheck( cudaMalloc(&dev_i,sizeof(int)) );
     float test_Ez;
 
     dim3 gridNF2FF((int)ceil(size_NF2FF_total/512.0));
@@ -1066,24 +1085,28 @@ double FDTD_GPU(const vector<double> &arguments) {
     for(int Phi_index = 0; Phi_index < numberofexcitationangles; Phi_index++) {
 
         Phi = Phi_index*2*PI/numberofexcitationangles;
-        cudaMemcpy(dev_Phi,&Phi,sizeof(float),cudaMemcpyHostToDevice);
+        cudaCheck( cudaMemcpy(dev_Phi,&Phi,sizeof(float),cudaMemcpyHostToDevice) );
 
         for (int i = 0; i < number_of_time_steps; i++) {
-            cudaMemcpy(dev_i,&i,sizeof(int),cudaMemcpyHostToDevice);
+            cudaCheck( cudaMemcpy(dev_i,&i,sizeof(int),cudaMemcpyHostToDevice) );
+
             H_field_update<<<grid,block>>>(dev_Hy,dev_Hx,dev_Ez,dev_bmx,dev_Psi_hyx,dev_amx,dev_bmx,dev_amx,dev_Psi_hxy,dev_kmx);
+            cudaCheckLastError("H_field_updated kernel failed");
             E_field_update<<<grid,block>>>(dev_i,dev_Ez,dev_Hy,dev_Hx,dev_Psi_ezx,dev_aex,dev_aex,dev_bex,dev_bex,dev_Psi_ezy,dev_kex,dev_Cezhy,dev_Cezhy,dev_Ceze,dev_Cezeip,dev_Cezeic,dev_Phi);
+            cudaCheckLastError("E_field_updated kernel failed");
             calculate_JandM<<<gridNF2FF,blockNF2FF>>>(dev_freq, dev_i,dev_Ez,dev_Hy,dev_Hx,cjzxp,cjzyp,cjzxn,cjzyn,cmxyp,cmyxp,cmxyn,cmyxn);
+            cudaCheckLastError("calculate_JandM kernel failed");
 
         }
 
-        cudaMemcpy(hcjzyn,cjzyn,sizeof(cuComplex)*size_cjzy,cudaMemcpyDeviceToHost);
-        cudaMemcpy(hcjzxp,cjzxp,sizeof(cuComplex)*size_cjzx,cudaMemcpyDeviceToHost);
-        cudaMemcpy(hcjzyp,cjzyp,sizeof(cuComplex)*size_cjzy,cudaMemcpyDeviceToHost);
-        cudaMemcpy(hcjzxn,cjzxn,sizeof(cuComplex)*size_cjzx,cudaMemcpyDeviceToHost);
-        cudaMemcpy(hcmxyn,cmxyn,sizeof(cuComplex)*size_cjzy,cudaMemcpyDeviceToHost);
-        cudaMemcpy(hcmyxp,cmyxp,sizeof(cuComplex)*size_cjzx,cudaMemcpyDeviceToHost);
-        cudaMemcpy(hcmxyp,cmxyp,sizeof(cuComplex)*size_cjzy,cudaMemcpyDeviceToHost);
-        cudaMemcpy(hcmyxn,cmyxn,sizeof(cuComplex)*size_cjzy,cudaMemcpyDeviceToHost);
+        cudaCheck( cudaMemcpy(hcjzyn,cjzyn,sizeof(cuComplex)*size_cjzy,cudaMemcpyDeviceToHost));
+        cudaCheck( cudaMemcpy(hcjzxp,cjzxp,sizeof(cuComplex)*size_cjzx,cudaMemcpyDeviceToHost));
+        cudaCheck( cudaMemcpy(hcjzyp,cjzyp,sizeof(cuComplex)*size_cjzy,cudaMemcpyDeviceToHost));
+        cudaCheck( cudaMemcpy(hcjzxn,cjzxn,sizeof(cuComplex)*size_cjzx,cudaMemcpyDeviceToHost));
+        cudaCheck( cudaMemcpy(hcmxyn,cmxyn,sizeof(cuComplex)*size_cjzy,cudaMemcpyDeviceToHost));
+        cudaCheck( cudaMemcpy(hcmyxp,cmyxp,sizeof(cuComplex)*size_cjzx,cudaMemcpyDeviceToHost));
+        cudaCheck( cudaMemcpy(hcmxyp,cmxyp,sizeof(cuComplex)*size_cjzy,cudaMemcpyDeviceToHost));
+        cudaCheck( cudaMemcpy(hcmyxn,cmyxn,sizeof(cuComplex)*size_cjzy,cudaMemcpyDeviceToHost));
 
         cuComplex nullComplex(0,0);
         for (int i = 0; i < size_NF2FF_total; i++) {
@@ -1102,7 +1125,7 @@ double FDTD_GPU(const vector<double> &arguments) {
 
         //measurement_data<<endl;
         Field_reset<<<grid,block>>>(dev_Ez, dev_Hy, dev_Hx, dev_Psi_ezy, dev_Psi_ezx, dev_Psi_hyx, dev_Psi_hxy,cjzyn,cjzxp,cjzyp,cjzxn,cmxyn,cmyxp,cmxyp,cmyxn);
-
+        cudaCheckLastError("Field_reset kernel failed");
     }
 
 
@@ -1161,44 +1184,44 @@ double FDTD_GPU(const vector<double> &arguments) {
     free(L);
     free(N);
 
-    cudaFree(dev_Cezeic);
-    cudaFree(dev_Cezeip);
-    cudaFree(dev_sigma_e_z);
-    cudaFree(dev_eps_r_z);
-    cudaFree(dev_freq);
+    cudaCheck( cudaFree(dev_Cezeic));
+    cudaCheck( cudaFree(dev_Cezeip));
+    cudaCheck( cudaFree(dev_sigma_e_z));
+    cudaCheck( cudaFree(dev_eps_r_z));
+    cudaCheck( cudaFree(dev_freq));
 
-    cudaFree(cjzxp);
-    cudaFree(cjzyp);
-    cudaFree(cjzxn);
-    cudaFree(cjzyn);
-    cudaFree(cmxyp);
-    cudaFree(cmyxp);
-    cudaFree(cmxyn);
-    cudaFree(cmyxn);
+    cudaCheck( cudaFree(cjzxp));
+    cudaCheck( cudaFree(cjzyp));
+    cudaCheck( cudaFree(cjzxn));
+    cudaCheck( cudaFree(cjzyn));
+    cudaCheck( cudaFree(cmxyp));
+    cudaCheck( cudaFree(cmyxp));
+    cudaCheck( cudaFree(cmxyn));
+    cudaCheck( cudaFree(cmyxn));
 
-    cudaFree(dev_Ceze);
-    cudaFree(dev_Cezhy);
-    cudaFree(dev_Cezhx);
+    cudaCheck( cudaFree(dev_Ceze));
+    cudaCheck( cudaFree(dev_Cezhy));
+    cudaCheck( cudaFree(dev_Cezhx));
 
-    cudaFree(dev_bex);
-    cudaFree(dev_aex);
-    cudaFree(dev_bmx);
-    cudaFree(dev_amx);
-    cudaFree(dev_kex);
-    cudaFree(dev_kmx);
-    cudaFree(dev_Ez);
-    cudaFree(dev_Hy);
-    cudaFree(dev_Hx);
-    cudaFree(dev_Psi_ezy);
-    cudaFree(dev_Psi_ezx);
-    cudaFree(dev_Psi_hyx);
-    cudaFree(dev_Psi_hxy);
+    cudaCheck( cudaFree(dev_bex));
+    cudaCheck( cudaFree(dev_aex));
+    cudaCheck( cudaFree(dev_bmx));
+    cudaCheck( cudaFree(dev_amx));
+    cudaCheck( cudaFree(dev_kex));
+    cudaCheck( cudaFree(dev_kmx));
+    cudaCheck( cudaFree(dev_Ez));
+    cudaCheck( cudaFree(dev_Hy));
+    cudaCheck( cudaFree(dev_Hx));
+    cudaCheck( cudaFree(dev_Psi_ezy));
+    cudaCheck( cudaFree(dev_Psi_ezx));
+    cudaCheck( cudaFree(dev_Psi_hyx));
+    cudaCheck( cudaFree(dev_Psi_hxy));
 
 //    cout << "fitness is: " << fit << endl;
     return (double)fit;
 }
 
-__global__ void scattered_parameter_init(float*eps_r_z,float*sigma_e_z,float*Cezeic,float*Cezeip)
+__global__ void scattered_parameter_init(float *eps_r_z, float *sigma_e_z, float *Cezeic, float *Cezeip)
 {
     int x=threadIdx.x+blockDim.x*blockIdx.x;
     int y=threadIdx.y+blockDim.y*blockIdx.y;
