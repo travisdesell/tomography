@@ -4,6 +4,7 @@
 
 #include "FDTD_CPU.h"
 
+
 #include <cmath>
 #include <vector>
 #include <iostream>
@@ -89,6 +90,8 @@ int main(int argc, char **argv) {
             int device_assignments[] = {-1, 0, 1, 0, 1, 0, 1, 0, 1};
 
             ps.go(FDTD_CPU, FDTD_GPU, device_assignments);
+        } else if (max_rank == 2) {
+            ps.go(FDTD_GPU);
         }
 #else
         ps.go(FDTD_CPU);

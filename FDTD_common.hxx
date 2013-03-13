@@ -57,8 +57,8 @@
  * I made getCell a macro which should speed things up 
  * a bit, and make the code simpler
  */
-#define getCell(x,y,size) (x + (y * size))
-
+#define getCell(x,y,size) ((x) + ((y) * (size)))
+#define dgetCell(x,y,size) ((x) + ((y) * (size)))
 
 int CPUgetxfromthreadIdNF2FF(int index);
 

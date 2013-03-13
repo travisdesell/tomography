@@ -35,6 +35,16 @@
   }
   }*/
 
+/*
+__device__ int dgetCell(int x, int y, int size) {
+    return x +y*size;
+}
+
+int getCell(int x, int y, int size) {
+    return x +y*size;
+}
+*/
+
 
 //__constant__ float*dev_Ceze,*dev_Cezhy,*dev_Cezhx,*dev_Cezj,*dev_Jz,*dev_Chyh,*dev_Chxh,*dev_Chyez,*dev_Chxez,*dev_bex,*dev_bey,*dev_aex,*dev_aey,*dev_bmy,*dev_bmx,*dev_amy,*dev_amx,*dev_C_Psi_ezy,
 //*dev_C_Psi_ezx,*dev_C_Psi_hxy,*dev_C_Psi_hyx;
@@ -215,16 +225,16 @@ __global__ void calculate_JandM(float* f,int* timestep,float*dev_Ez,float*dev_Hy
 
         if(isOnyp(x,y))
         {
-            Ez = (dev_Ez[getCell(x,y+1,nx+1)]+dev_Ez[getCell(x,y,nx+1)])/2;
-            float Hx = dev_Hx[getCell(x,y,nx)];
+            Ez = (dev_Ez[dgetCell(x,y+1,nx+1)]+dev_Ez[dgetCell(x,y,nx+1)])/2;
+            float Hx = dev_Hx[dgetCell(x,y,nx)];
             cjzyp[index-(nx+ny-4*NF2FFdistfromboundary-2)] += -1*Hx*deltatime*cuexp((float)(-1)*j*(float)2*pi*freq*(float)(*timestep)*deltatime);//cjzyp and cmxyp have nx - 2*NF2FFBoundary -2 elements
 
             cmxyp[index-(nx+ny-4*NF2FFdistfromboundary-2)] += -1*Ez*deltatime*cuexp((float)-1.0*j*(float)2.0*(float)PI*freq*((float)(*timestep)+0.5)*(float)dt);
         }
         else if(isOnxp(x))//X faces override y faces at their intersections
         {
-            Ez = (dev_Ez[getCell(x,y,nx+1)]+dev_Ez[getCell(x+1,y,nx+1)])/2;
-            float Hy = dev_Hy[getCell(x,y,nx)];
+            Ez = (dev_Ez[dgetCell(x,y,nx+1)]+dev_Ez[dgetCell(x+1,y,nx+1)])/2;
+            float Hy = dev_Hy[dgetCell(x,y,nx)];
 
             cjzxp[index-(nx-2*NF2FFdistfromboundary-2)] += Hy*deltatime*cuexp(-1*j*2*pi*freq*(float)(*timestep)*(float)dt);//cjzxp and cmyxp have ny-2*NF2FFBound elements
 
@@ -232,16 +242,16 @@ __global__ void calculate_JandM(float* f,int* timestep,float*dev_Ez,float*dev_Hy
         }
         else if(isOnyn(x,y))
         {  
-            Ez = (dev_Ez[getCell(x,y,nx+1)]+dev_Ez[getCell(x,y+1,nx+1)])/2;
-            float Hx=dev_Hx[getCell(x,y,nx)];
+            Ez = (dev_Ez[dgetCell(x,y,nx+1)]+dev_Ez[dgetCell(x,y+1,nx+1)])/2;
+            float Hx=dev_Hx[dgetCell(x,y,nx)];
 
             cjzyn[index] += Hx*(float)dt*cuexp((float)(-1)*j*(float)2.0*(float)PI*freq*(float)(*timestep)*(float)dt);  //cjzyn and cmxyn need to have nx-2*NF2FFbound-2 elements
             cmxyn[index] += Ez*(float)dt*cuexp((float)(-1)*j*(float)2.0*(float)PI*freq*((float)(*timestep)+0.5)*(float)dt);
         }
         else if(isOnxn(x))
         {
-            Ez = (dev_Ez[getCell(x,y,nx+1)]+dev_Ez[getCell(x+1,y,nx+1)])/2;
-            cjzxn[index-(2*nx+ny-6*NF2FFdistfromboundary-4)] += -1*dev_Hy[getCell(x,y,nx)]*(float)dt*cuexp((float)(-1)*j*(float)2.0*(float)PI*freq*(float)(*timestep)*(float)dt); // cjzxn and cmyxn must have ny-2*NFdistfromboundary elements
+            Ez = (dev_Ez[dgetCell(x,y,nx+1)]+dev_Ez[dgetCell(x+1,y,nx+1)])/2;
+            cjzxn[index-(2*nx+ny-6*NF2FFdistfromboundary-4)] += -1*dev_Hy[dgetCell(x,y,nx)]*(float)dt*cuexp((float)(-1)*j*(float)2.0*(float)PI*freq*(float)(*timestep)*(float)dt); // cjzxn and cmyxn must have ny-2*NFdistfromboundary elements
             cmyxn[index-(2*nx+ny-6*NF2FFdistfromboundary-4)] += -1*Ez*(float)dt*cuexp(-1.0*j*2.0*(float)PI*freq*((float)(*timestep)+0.5)*(float)dt);
         }
     }
@@ -274,52 +284,52 @@ __global__ void H_field_update(float*dev_Hy,float*dev_Hx,float*dev_Ez,float*dev_
 
     if(x<nx&&y<nx)
     {
-        buffer_Hy = dev_Hy[getCell(x,y,nx)]+Chez*(dev_Ez[getCell(x+1,y,nx+1)]-dev_Ez[getCell(x,y,nx+1)]);
-        buffer_Hx = dev_Hx[getCell(x,y,nx)]-Chez*(dev_Ez[getCell(x,y+1,nx+1)]-dev_Ez[getCell(x,y,nx+1)]);
+        buffer_Hy = dev_Hy[dgetCell(x,y,nx)]+Chez*(dev_Ez[dgetCell(x+1,y,nx+1)]-dev_Ez[dgetCell(x,y,nx+1)]);
+        buffer_Hx = dev_Hx[dgetCell(x,y,nx)]-Chez*(dev_Ez[dgetCell(x,y+1,nx+1)]-dev_Ez[dgetCell(x,y,nx+1)]);
         if(x<ncells)
         {
-            buffer_Hy= dev_Hy[getCell(x,y,nx)]+Chez*(dev_Ez[getCell(x+1,y,nx+1)]-dev_Ez[getCell(x,y,nx+1)])/kex[ncells-1-x];
-            dev_Psi_hyx[getCell(x,y,20)]=dev_bmx[ncells-1-x]*dev_Psi_hyx[getCell(x,y,20)]+dev_amx[ncells-1-x]*(dev_Ez[getCell(x+1,y,nx+1)]-dev_Ez[getCell(x,y,nx+1)]);
-            buffer_Hy+=Chez*dx*dev_Psi_hyx[getCell(x,y,20)] ;
+            buffer_Hy= dev_Hy[dgetCell(x,y,nx)]+Chez*(dev_Ez[dgetCell(x+1,y,nx+1)]-dev_Ez[dgetCell(x,y,nx+1)])/kex[ncells-1-x];
+            dev_Psi_hyx[dgetCell(x,y,20)]=dev_bmx[ncells-1-x]*dev_Psi_hyx[dgetCell(x,y,20)]+dev_amx[ncells-1-x]*(dev_Ez[dgetCell(x+1,y,nx+1)]-dev_Ez[dgetCell(x,y,nx+1)]);
+            buffer_Hy+=Chez*dx*dev_Psi_hyx[dgetCell(x,y,20)] ;
         } 
         if(x>=(nx-ncells))
         {
-            buffer_Hy=dev_Hy[getCell(x,y,nx)]+Chez*(dev_Ez[getCell(x+1,y,nx+1)]-dev_Ez[getCell(x,y,nx+1)])/kex[x-nx+ncells];
-            dev_Psi_hyx[getCell(x-nx+20,y,2*ncells)]=dev_bmx[x-nx+ncells]*dev_Psi_hyx[getCell(x-nx+20,y,20)]+dev_amx[x-nx+ncells]*(dev_Ez[getCell(x+1,y,nx+1)]-dev_Ez[getCell(x,y,nx+1)]);
-            buffer_Hy+=Chez*dx*dev_Psi_hyx[getCell(x-nx+20,y,20)];
+            buffer_Hy=dev_Hy[dgetCell(x,y,nx)]+Chez*(dev_Ez[dgetCell(x+1,y,nx+1)]-dev_Ez[dgetCell(x,y,nx+1)])/kex[x-nx+ncells];
+            dev_Psi_hyx[dgetCell(x-nx+20,y,2*ncells)]=dev_bmx[x-nx+ncells]*dev_Psi_hyx[dgetCell(x-nx+20,y,20)]+dev_amx[x-nx+ncells]*(dev_Ez[dgetCell(x+1,y,nx+1)]-dev_Ez[dgetCell(x,y,nx+1)]);
+            buffer_Hy+=Chez*dx*dev_Psi_hyx[dgetCell(x-nx+20,y,20)];
         }
         if(y<ncells)
         {
-            buffer_Hx=dev_Hx[getCell(x,y,nx)]-Chez*(dev_Ez[getCell(x,y+1,nx+1)]-dev_Ez[getCell(x,y,nx+1)])/kex[ncells-1-y];
-            dev_Psi_hxy[getCell(x,y,nx)]=dev_bmy[ncells-1-y]*dev_Psi_hxy[getCell(x,y,nx)]+dev_amy[ncells-1-y]*(dev_Ez[getCell(x,y+1,nx+1)]-dev_Ez[getCell(x,y,nx+1)]);
-            buffer_Hx-=Chez*dy*dev_Psi_hxy[getCell(x,y,nx)];  
+            buffer_Hx=dev_Hx[dgetCell(x,y,nx)]-Chez*(dev_Ez[dgetCell(x,y+1,nx+1)]-dev_Ez[dgetCell(x,y,nx+1)])/kex[ncells-1-y];
+            dev_Psi_hxy[dgetCell(x,y,nx)]=dev_bmy[ncells-1-y]*dev_Psi_hxy[dgetCell(x,y,nx)]+dev_amy[ncells-1-y]*(dev_Ez[dgetCell(x,y+1,nx+1)]-dev_Ez[dgetCell(x,y,nx+1)]);
+            buffer_Hx-=Chez*dy*dev_Psi_hxy[dgetCell(x,y,nx)];  
         }
         if(y>=(ny-ncells))
         {
-            buffer_Hx=dev_Hx[getCell(x,y,nx)]-Chez*(dev_Ez[getCell(x,y+1,nx+1)]-dev_Ez[getCell(x,y,nx+1)])/kex[y-ny+ncells];
-            dev_Psi_hxy[getCell(x,y-ny+20,nx)]=dev_bmy[y-ny+ncells]*dev_Psi_hxy[getCell(x,y-ny+20,nx)]+dev_amy[y-ny+ncells]*(dev_Ez[getCell(x,y+1,nx+1)]-dev_Ez[getCell(x,y,nx+1)]);
-            buffer_Hx-=Chez*dy*dev_Psi_hxy[getCell(x,y-nx+20,nx)];
+            buffer_Hx=dev_Hx[dgetCell(x,y,nx)]-Chez*(dev_Ez[dgetCell(x,y+1,nx+1)]-dev_Ez[dgetCell(x,y,nx+1)])/kex[y-ny+ncells];
+            dev_Psi_hxy[dgetCell(x,y-ny+20,nx)]=dev_bmy[y-ny+ncells]*dev_Psi_hxy[dgetCell(x,y-ny+20,nx)]+dev_amy[y-ny+ncells]*(dev_Ez[dgetCell(x,y+1,nx+1)]-dev_Ez[dgetCell(x,y,nx+1)]);
+            buffer_Hx-=Chez*dy*dev_Psi_hxy[dgetCell(x,y-nx+20,nx)];
         }
         //__syncthreads();
         if(isnan(buffer_Hx)) 
         {
-            dev_Hx[getCell(x,y,nx)] = 0.0;
+            dev_Hx[dgetCell(x,y,nx)] = 0.0;
         }
         else 
         {
-            dev_Hx[getCell(x,y,nx)] = buffer_Hx;
+            dev_Hx[dgetCell(x,y,nx)] = buffer_Hx;
         }
 
         if(isnan(buffer_Hy)) {
-            dev_Hy[getCell(x,y,nx)] = 0.0;
+            dev_Hy[dgetCell(x,y,nx)] = 0.0;
         }
         else
         {
-            dev_Hy[getCell(x,y,nx)] = buffer_Hy;
+            dev_Hy[dgetCell(x,y,nx)] = buffer_Hy;
         }
 
-        //dev_Hx[getCell(x,y,nx)] = buffer_Hx;
-        //dev_Hy[getCell(x,y,nx)] = buffer_Hy;
+        //dev_Hx[dgetCell(x,y,nx)] = buffer_Hx;
+        //dev_Hy[dgetCell(x,y,nx)] = buffer_Hy;
     }
 }
 
@@ -333,52 +343,52 @@ __global__ void H_inc_update(float*dev_Hy,float*dev_Hx,float*dev_Ez,float*dev_bm
 
     if(x<nx&&y<nx)
     {
-        buffer_Hy = dev_Hy[getCell(x,y,nx)]+Chez*(dev_Ez[getCell(x+1,y,nx+1)]-dev_Ez[getCell(x,y,nx+1)]);
-        buffer_Hx = dev_Hx[getCell(x,y,nx)]-Chez*(dev_Ez[getCell(x,y+1,nx+1)]-dev_Ez[getCell(x,y,nx+1)]);
+        buffer_Hy = dev_Hy[dgetCell(x,y,nx)]+Chez*(dev_Ez[dgetCell(x+1,y,nx+1)]-dev_Ez[dgetCell(x,y,nx+1)]);
+        buffer_Hx = dev_Hx[dgetCell(x,y,nx)]-Chez*(dev_Ez[dgetCell(x,y+1,nx+1)]-dev_Ez[dgetCell(x,y,nx+1)]);
         if(x<ncells)
         {
-            buffer_Hy= dev_Hy[getCell(x,y,nx)]+Chez*(dev_Ez[getCell(x+1,y,nx+1)]-dev_Ez[getCell(x,y,nx+1)])/kex[ncells-1-x];
-            dev_Psi_hyx[getCell(x,y,20)]=dev_bmx[ncells-1-x]*dev_Psi_hyx[getCell(x,y,20)]+dev_amx[ncells-1-x]*(dev_Ez[getCell(x+1,y,nx+1)]-dev_Ez[getCell(x,y,nx+1)]);
-            buffer_Hy+=Chez*dx*dev_Psi_hyx[getCell(x,y,20)] ;
+            buffer_Hy= dev_Hy[dgetCell(x,y,nx)]+Chez*(dev_Ez[dgetCell(x+1,y,nx+1)]-dev_Ez[dgetCell(x,y,nx+1)])/kex[ncells-1-x];
+            dev_Psi_hyx[dgetCell(x,y,20)]=dev_bmx[ncells-1-x]*dev_Psi_hyx[dgetCell(x,y,20)]+dev_amx[ncells-1-x]*(dev_Ez[dgetCell(x+1,y,nx+1)]-dev_Ez[dgetCell(x,y,nx+1)]);
+            buffer_Hy+=Chez*dx*dev_Psi_hyx[dgetCell(x,y,20)] ;
         } 
         if(x>=(nx-ncells))
         {
-            buffer_Hy=dev_Hy[getCell(x,y,nx)]+Chez*(dev_Ez[getCell(x+1,y,nx+1)]-dev_Ez[getCell(x,y,nx+1)])/kex[x-nx+ncells];
-            dev_Psi_hyx[getCell(x-nx+20,y,2*ncells)]=dev_bmx[x-nx+ncells]*dev_Psi_hyx[getCell(x-nx+20,y,20)]+dev_amx[x-nx+ncells]*(dev_Ez[getCell(x+1,y,nx+1)]-dev_Ez[getCell(x,y,nx+1)]);
-            buffer_Hy+=Chez*dx*dev_Psi_hyx[getCell(x-nx+20,y,20)];
+            buffer_Hy=dev_Hy[dgetCell(x,y,nx)]+Chez*(dev_Ez[dgetCell(x+1,y,nx+1)]-dev_Ez[dgetCell(x,y,nx+1)])/kex[x-nx+ncells];
+            dev_Psi_hyx[dgetCell(x-nx+20,y,2*ncells)]=dev_bmx[x-nx+ncells]*dev_Psi_hyx[dgetCell(x-nx+20,y,20)]+dev_amx[x-nx+ncells]*(dev_Ez[dgetCell(x+1,y,nx+1)]-dev_Ez[dgetCell(x,y,nx+1)]);
+            buffer_Hy+=Chez*dx*dev_Psi_hyx[dgetCell(x-nx+20,y,20)];
         }
         if(y<ncells)
         {
-            buffer_Hx=dev_Hx[getCell(x,y,nx)]-Chez*(dev_Ez[getCell(x,y+1,nx+1)]-dev_Ez[getCell(x,y,nx+1)])/kex[ncells-1-y];
-            dev_Psi_hxy[getCell(x,y,nx)]=dev_bmy[ncells-1-y]*dev_Psi_hxy[getCell(x,y,nx)]+dev_amy[ncells-1-y]*(dev_Ez[getCell(x,y+1,nx+1)]-dev_Ez[getCell(x,y,nx+1)]);
-            buffer_Hx-=Chez*dy*dev_Psi_hxy[getCell(x,y,nx)];  
+            buffer_Hx=dev_Hx[dgetCell(x,y,nx)]-Chez*(dev_Ez[dgetCell(x,y+1,nx+1)]-dev_Ez[dgetCell(x,y,nx+1)])/kex[ncells-1-y];
+            dev_Psi_hxy[dgetCell(x,y,nx)]=dev_bmy[ncells-1-y]*dev_Psi_hxy[dgetCell(x,y,nx)]+dev_amy[ncells-1-y]*(dev_Ez[dgetCell(x,y+1,nx+1)]-dev_Ez[dgetCell(x,y,nx+1)]);
+            buffer_Hx-=Chez*dy*dev_Psi_hxy[dgetCell(x,y,nx)];  
         }
         if(y>=(ny-ncells))
         {
-            buffer_Hx=dev_Hx[getCell(x,y,nx)]-Chez*(dev_Ez[getCell(x,y+1,nx+1)]-dev_Ez[getCell(x,y,nx+1)])/kex[y-ny+ncells];
-            dev_Psi_hxy[getCell(x,y-ny+20,nx)]=dev_bmy[y-ny+ncells]*dev_Psi_hxy[getCell(x,y-ny+20,nx)]+dev_amy[y-ny+ncells]*(dev_Ez[getCell(x,y+1,nx+1)]-dev_Ez[getCell(x,y,nx+1)]);
-            buffer_Hx-=Chez*dy*dev_Psi_hxy[getCell(x,y-nx+20,nx)];
+            buffer_Hx=dev_Hx[dgetCell(x,y,nx)]-Chez*(dev_Ez[dgetCell(x,y+1,nx+1)]-dev_Ez[dgetCell(x,y,nx+1)])/kex[y-ny+ncells];
+            dev_Psi_hxy[dgetCell(x,y-ny+20,nx)]=dev_bmy[y-ny+ncells]*dev_Psi_hxy[dgetCell(x,y-ny+20,nx)]+dev_amy[y-ny+ncells]*(dev_Ez[dgetCell(x,y+1,nx+1)]-dev_Ez[dgetCell(x,y,nx+1)]);
+            buffer_Hx-=Chez*dy*dev_Psi_hxy[dgetCell(x,y-nx+20,nx)];
         }
         //__syncthreads();
         if(isnan(buffer_Hx)) 
         {
-            dev_Hx[getCell(x,y,nx)] = 0.0;
+            dev_Hx[dgetCell(x,y,nx)] = 0.0;
         }
         else 
         {
-            dev_Hx[getCell(x,y,nx)] = buffer_Hx;
+            dev_Hx[dgetCell(x,y,nx)] = buffer_Hx;
         }
 
         if(isnan(buffer_Hy)) {
-            dev_Hy[getCell(x,y,nx)] = 0.0;
+            dev_Hy[dgetCell(x,y,nx)] = 0.0;
         }
         else
         {
-            dev_Hy[getCell(x,y,nx)] = buffer_Hy;
+            dev_Hy[dgetCell(x,y,nx)] = buffer_Hy;
         }
 
-        //dev_Hx[getCell(x,y,nx)] = buffer_Hx;
-        //dev_Hy[getCell(x,y,nx)] = buffer_Hy;
+        //dev_Hx[dgetCell(x,y,nx)] = buffer_Hx;
+        //dev_Hy[dgetCell(x,y,nx)] = buffer_Hy;
     }
 }
 
@@ -405,16 +415,16 @@ __global__ void E_field_update(int *i,float*dev_Ez,float*dev_Hy,float*dev_Hx,flo
             if(isscattering)
             {
 
-                buffer_Ez = Ceze[getCell(x,y,nx+1)]*dev_Ez[getCell(x,y,nx+1)]+Cezhy[getCell(x,y,nx+1)]*(dev_Hy[getCell(x,y,nx)]-dev_Hy[getCell(x-1,y,nx)])
-                    -Cezhx[getCell(x,y,nx+1)]*(dev_Hx[getCell(x,y,nx)]-dev_Hx[getCell(x,y-1,nx)])
-                    +Cezeic[getCell(x,y,nx+1)]*fwf((float)(*i)+0.5,x-nx/2,y-ny/2,*Phi,-breast_radius)
-                    +Cezeip[getCell(x,y,nx+1)]*fwf((float)(*i)-0.5,x-nx/2,y-ny/2,*Phi,-breast_radius);
+                buffer_Ez = Ceze[dgetCell(x,y,nx+1)]*dev_Ez[dgetCell(x,y,nx+1)]+Cezhy[dgetCell(x,y,nx+1)]*(dev_Hy[dgetCell(x,y,nx)]-dev_Hy[dgetCell(x-1,y,nx)])
+                    -Cezhx[dgetCell(x,y,nx+1)]*(dev_Hx[dgetCell(x,y,nx)]-dev_Hx[dgetCell(x,y-1,nx)])
+                    +Cezeic[dgetCell(x,y,nx+1)]*fwf((float)(*i)+0.5,x-nx/2,y-ny/2,*Phi,-breast_radius)
+                    +Cezeip[dgetCell(x,y,nx+1)]*fwf((float)(*i)-0.5,x-nx/2,y-ny/2,*Phi,-breast_radius);
 
             }
             else
             {
-                buffer_Ez = Ceze[getCell(x,y,nx+1)]*dev_Ez[getCell(x,y,nx+1)]+Cezhy[getCell(x,y,nx+1)]*(dev_Hy[getCell(x,y,nx)]-dev_Hy[getCell(x-1,y,nx)])
-                    -Cezhx[getCell(x,y,nx+1)]*(dev_Hx[getCell(x,y,nx)]-dev_Hx[getCell(x,y-1,nx)]);
+                buffer_Ez = Ceze[dgetCell(x,y,nx+1)]*dev_Ez[dgetCell(x,y,nx+1)]+Cezhy[dgetCell(x,y,nx+1)]*(dev_Hy[dgetCell(x,y,nx)]-dev_Hy[dgetCell(x-1,y,nx)])
+                    -Cezhx[dgetCell(x,y,nx+1)]*(dev_Hx[dgetCell(x,y,nx)]-dev_Hx[dgetCell(x,y-1,nx)]);
                 if(x==(int)(source_x)&&y==(int)(source_y))
                 {
                     buffer_Ez=buffer_Ez + 100*Cezj*fwf((float)(*i),0,0,0,0);
@@ -428,31 +438,31 @@ __global__ void E_field_update(int *i,float*dev_Ez,float*dev_Hy,float*dev_Hx,flo
             //}
             if(x<=ncells&&x!=0)
             {
-                buffer_Ez = Ceze[getCell(x,y,nx+1)]*dev_Ez[getCell(x,y,nx+1)]+Cezhy[getCell(x,y,nx+1)]*(dev_Hy[getCell(x,y,nx)]-dev_Hy[getCell(x-1,y,nx)])/kex[ncells-x]
-                    -Cezhx[getCell(x,y,nx+1)]*(dev_Hx[getCell(x,y,nx)]-dev_Hx[getCell(x,y-1,nx)])/kex[ncells-x];
-                dev_Psi_ezx[getCell(x-1,y-1,20)] = dev_bex[ncells-x]*dev_Psi_ezx[getCell(x-1,y-1,20)]+dev_aex[ncells-x]*(dev_Hy[getCell(x,y,nx)]-dev_Hy[getCell(x-1,y,nx)]);
-                buffer_Ez += Cezhy[getCell(x,y,nx+1)]*dx*dev_Psi_ezx[getCell(x-1,y-1,2*ncells)];
+                buffer_Ez = Ceze[dgetCell(x,y,nx+1)]*dev_Ez[dgetCell(x,y,nx+1)]+Cezhy[dgetCell(x,y,nx+1)]*(dev_Hy[dgetCell(x,y,nx)]-dev_Hy[dgetCell(x-1,y,nx)])/kex[ncells-x]
+                    -Cezhx[dgetCell(x,y,nx+1)]*(dev_Hx[dgetCell(x,y,nx)]-dev_Hx[dgetCell(x,y-1,nx)])/kex[ncells-x];
+                dev_Psi_ezx[dgetCell(x-1,y-1,20)] = dev_bex[ncells-x]*dev_Psi_ezx[dgetCell(x-1,y-1,20)]+dev_aex[ncells-x]*(dev_Hy[dgetCell(x,y,nx)]-dev_Hy[dgetCell(x-1,y,nx)]);
+                buffer_Ez += Cezhy[dgetCell(x,y,nx+1)]*dx*dev_Psi_ezx[dgetCell(x-1,y-1,2*ncells)];
             }
             if(x>=(nx-ncells)&&x!=nx)
             {
-                buffer_Ez = Ceze[getCell(x,y,nx+1)]*dev_Ez[getCell(x,y,nx+1)]+Cezhy[getCell(x,y,nx+1)]*(dev_Hy[getCell(x,y,nx)]-dev_Hy[getCell(x-1,y,nx)])/kex[x-nx+ncells]
-                    -Cezhx[getCell(x,y,nx+1)]*(dev_Hx[getCell(x,y,nx)]-dev_Hx[getCell(x,y-1,nx)])/kex[x-nx+ncells];
-                dev_Psi_ezx[getCell(x-nx+20,y-1,20)]=dev_bex[x-nx+ncells]*dev_Psi_ezx[getCell(x-nx+20,y-1,20)]+dev_aex[x-nx+ncells]*(dev_Hy[getCell(x,y,nx)]-dev_Hy[getCell(x-1,y,nx)]);
-                buffer_Ez+=Cezhy[getCell(x,y,nx+1)]*dx*dev_Psi_ezx[getCell(x-nx+20,y-1,2*ncells)];
+                buffer_Ez = Ceze[dgetCell(x,y,nx+1)]*dev_Ez[dgetCell(x,y,nx+1)]+Cezhy[dgetCell(x,y,nx+1)]*(dev_Hy[dgetCell(x,y,nx)]-dev_Hy[dgetCell(x-1,y,nx)])/kex[x-nx+ncells]
+                    -Cezhx[dgetCell(x,y,nx+1)]*(dev_Hx[dgetCell(x,y,nx)]-dev_Hx[dgetCell(x,y-1,nx)])/kex[x-nx+ncells];
+                dev_Psi_ezx[dgetCell(x-nx+20,y-1,20)]=dev_bex[x-nx+ncells]*dev_Psi_ezx[dgetCell(x-nx+20,y-1,20)]+dev_aex[x-nx+ncells]*(dev_Hy[dgetCell(x,y,nx)]-dev_Hy[dgetCell(x-1,y,nx)]);
+                buffer_Ez+=Cezhy[dgetCell(x,y,nx+1)]*dx*dev_Psi_ezx[dgetCell(x-nx+20,y-1,2*ncells)];
             }
             if(y<=ncells&&y!=0)
             {
-                buffer_Ez = Ceze[getCell(x,y,nx+1)]*dev_Ez[getCell(x,y,nx+1)]+Cezhy[getCell(x,y,nx+1)]*(dev_Hy[getCell(x,y,nx)]-dev_Hy[getCell(x-1,y,nx)])/kex[ncells-y]
-                    -Cezhx[getCell(x,y,nx+1)]*(dev_Hx[getCell(x,y,nx)]-dev_Hx[getCell(x,y-1,nx)])/kex[ncells-y];
-                dev_Psi_ezy[getCell(x-1,y-1,nx)]=dev_bey[(ncells-y)]*dev_Psi_ezy[getCell(x-1,y-1,nx)]+dev_aey[(ncells-y)]*(dev_Hx[getCell(x,y,nx)]-dev_Hx[getCell(x,y-1,nx)]);
-                buffer_Ez-=Cezhx[getCell(x,y,nx+1)]*dy*dev_Psi_ezy[getCell(x-1,y-1,nx)];
+                buffer_Ez = Ceze[dgetCell(x,y,nx+1)]*dev_Ez[dgetCell(x,y,nx+1)]+Cezhy[dgetCell(x,y,nx+1)]*(dev_Hy[dgetCell(x,y,nx)]-dev_Hy[dgetCell(x-1,y,nx)])/kex[ncells-y]
+                    -Cezhx[dgetCell(x,y,nx+1)]*(dev_Hx[dgetCell(x,y,nx)]-dev_Hx[dgetCell(x,y-1,nx)])/kex[ncells-y];
+                dev_Psi_ezy[dgetCell(x-1,y-1,nx)]=dev_bey[(ncells-y)]*dev_Psi_ezy[dgetCell(x-1,y-1,nx)]+dev_aey[(ncells-y)]*(dev_Hx[dgetCell(x,y,nx)]-dev_Hx[dgetCell(x,y-1,nx)]);
+                buffer_Ez-=Cezhx[dgetCell(x,y,nx+1)]*dy*dev_Psi_ezy[dgetCell(x-1,y-1,nx)];
             }
             if(y>=(ny-ncells)&&y!=ny)
             {
-                buffer_Ez = Ceze[getCell(x,y,nx+1)]*dev_Ez[getCell(x,y,nx+1)]+Cezhy[getCell(x,y,nx+1)]*(dev_Hy[getCell(x,y,nx)]-dev_Hy[getCell(x-1,y,nx)])/kex[y-ny+ncells]
-                    -Cezhx[getCell(x,y,nx+1)]*(dev_Hx[getCell(x,y,nx)]-dev_Hx[getCell(x,y-1,nx)])/kex[y-ny+ncells];
-                dev_Psi_ezy[getCell(x-1,y-ny+20,nx)]=dev_bey[y-ny+ncells]*dev_Psi_ezy[getCell(x-1,y-ny+20,nx)]+dev_aey[y-ny+ncells]*(dev_Hx[getCell(x,y,nx)]-dev_Hx[getCell(x,y-1,nx)]);
-                buffer_Ez-=Cezhx[getCell(x,y,nx+1)]*dy*dev_Psi_ezy[getCell(x-1,y-ny+20,nx)];
+                buffer_Ez = Ceze[dgetCell(x,y,nx+1)]*dev_Ez[dgetCell(x,y,nx+1)]+Cezhy[dgetCell(x,y,nx+1)]*(dev_Hy[dgetCell(x,y,nx)]-dev_Hy[dgetCell(x-1,y,nx)])/kex[y-ny+ncells]
+                    -Cezhx[dgetCell(x,y,nx+1)]*(dev_Hx[dgetCell(x,y,nx)]-dev_Hx[dgetCell(x,y-1,nx)])/kex[y-ny+ncells];
+                dev_Psi_ezy[dgetCell(x-1,y-ny+20,nx)]=dev_bey[y-ny+ncells]*dev_Psi_ezy[dgetCell(x-1,y-ny+20,nx)]+dev_aey[y-ny+ncells]*(dev_Hx[dgetCell(x,y,nx)]-dev_Hx[dgetCell(x,y-1,nx)]);
+                buffer_Ez-=Cezhx[dgetCell(x,y,nx+1)]*dy*dev_Psi_ezy[dgetCell(x-1,y-ny+20,nx)];
             }
         }
         //		unsigned char green = 128+127*buffer_Ez/0.4;
@@ -463,12 +473,12 @@ __global__ void E_field_update(int *i,float*dev_Ez,float*dev_Hy,float*dev_Hx,flo
 
         //__syncthreads();
         if(isnan(buffer_Ez)) {
-            dev_Ez[getCell(x,y,nx+1)] = 0.0;
+            dev_Ez[dgetCell(x,y,nx+1)] = 0.0;
         }
         else {
-            dev_Ez[getCell(x,y,nx+1)] = buffer_Ez;
+            dev_Ez[dgetCell(x,y,nx+1)] = buffer_Ez;
         }
-        //dev_Ez[getCell(x,y,nx+1)] = buffer_Ez;
+        //dev_Ez[dgetCell(x,y,nx+1)] = buffer_Ez;
     }
 
 }
@@ -480,45 +490,45 @@ __global__ void Field_reset(float* Ez, float* Hy, float* Hx, float* Psi_ezy,floa
     int index = x + y*blockDim.x*gridDim.x;
     if(x<=ncells&&x!=0)
     {
-        Psi_ezx[getCell(x-1,y-1,20)] =0;
+        Psi_ezx[dgetCell(x-1,y-1,20)] =0;
     }
     if(x>=(nx-ncells)&&x!=nx)
     {
-        Psi_ezx[getCell(x-nx+20,y-1,20)]=0;
+        Psi_ezx[dgetCell(x-nx+20,y-1,20)]=0;
     }
     if(y<=ncells&&y!=0)
     {
-        Psi_ezy[getCell(x-1,y-1,nx)]=0;
+        Psi_ezy[dgetCell(x-1,y-1,nx)]=0;
     }
     if(y>=(ny-ncells)&&y!=ny)
     {
-        Psi_ezy[getCell(x-1,y-ny+20,nx)]=0;
+        Psi_ezy[dgetCell(x-1,y-ny+20,nx)]=0;
     }
     if(x<ncells)
     {
 
-        Psi_hyx[getCell(x,y,20)]=0;
+        Psi_hyx[dgetCell(x,y,20)]=0;
     } 
     if(x>=(nx-ncells))
     {
-        Psi_hyx[getCell(x-nx+20,y,2*ncells)]=0.0;
+        Psi_hyx[dgetCell(x-nx+20,y,2*ncells)]=0.0;
     }
     if(y<ncells)
     {
-        Psi_hxy[getCell(x,y,nx)]=0.0;
+        Psi_hxy[dgetCell(x,y,nx)]=0.0;
     }
     if(y>=(ny-ncells))
     {
-        Psi_hxy[getCell(x,y-ny+20,nx)]=0.0;
+        Psi_hxy[dgetCell(x,y-ny+20,nx)]=0.0;
     }
     if(x<=nx&&y<=ny)
     {
-        Ez[getCell(x,y,nx+1)] = 0.0;
+        Ez[dgetCell(x,y,nx+1)] = 0.0;
     }
     if(x<nx&&y<ny)
     {
-        Hy[getCell(x,y,nx)] = 0.0;
-        Hx[getCell(x,y,nx)] = 0.0;
+        Hy[dgetCell(x,y,nx)] = 0.0;
+        Hx[dgetCell(x,y,nx)] = 0.0;
     }
 
     if(index<=size_NF2FF_total)
@@ -574,8 +584,8 @@ __global__ void E_inc_update(int *i,float*dev_Hy_inc,float*dev_Hx_inc,float*dev_
         }
         else
         {
-            buffer_Ez = Ceze*dev_Ezic[getCell(x,y,nx+1)]+Cezhy*(dev_Hy_inc[getCell(x,y,nx)]-dev_Hy_inc[getCell(x-1,y,nx)])
-                -Cezhy*(dev_Hx_inc[getCell(x,y,nx)]-dev_Hx_inc[getCell(x,y-1,nx)]);
+            buffer_Ez = Ceze*dev_Ezic[dgetCell(x,y,nx+1)]+Cezhy*(dev_Hy_inc[dgetCell(x,y,nx)]-dev_Hy_inc[dgetCell(x-1,y,nx)])
+                -Cezhy*(dev_Hx_inc[dgetCell(x,y,nx)]-dev_Hx_inc[dgetCell(x,y-1,nx)]);
 
             if(x==((int)source_x)&&y==(int)(source_y))
             {
@@ -584,35 +594,35 @@ __global__ void E_inc_update(int *i,float*dev_Hy_inc,float*dev_Hx_inc,float*dev_
             }
             if(x<=ncells&&x!=0)
             {
-                buffer_Ez = Ceze*dev_Ezic[getCell(x,y,nx+1)]+Cezhy*(dev_Hy_inc[getCell(x,y,nx)]-dev_Hy_inc[getCell(x-1,y,nx)])/kex[ncells-x]
-                    -Cezhy*(dev_Hx_inc[getCell(x,y,nx)]-dev_Hx_inc[getCell(x,y-1,nx)])/kex[ncells-x];
-                dev_Psi_ezx_inc[getCell(x-1,y-1,20)] = dev_bex[ncells-x]*dev_Psi_ezx_inc[getCell(x-1,y-1,20)]+dev_aex[ncells-x]*(dev_Hy_inc[getCell(x,y,nx)]-dev_Hy_inc[getCell(x-1,y,nx)]);
-                buffer_Ez += Cezhy*dx*dev_Psi_ezx_inc[getCell(x-1,y-1,2*ncells)];
+                buffer_Ez = Ceze*dev_Ezic[dgetCell(x,y,nx+1)]+Cezhy*(dev_Hy_inc[dgetCell(x,y,nx)]-dev_Hy_inc[dgetCell(x-1,y,nx)])/kex[ncells-x]
+                    -Cezhy*(dev_Hx_inc[dgetCell(x,y,nx)]-dev_Hx_inc[dgetCell(x,y-1,nx)])/kex[ncells-x];
+                dev_Psi_ezx_inc[dgetCell(x-1,y-1,20)] = dev_bex[ncells-x]*dev_Psi_ezx_inc[dgetCell(x-1,y-1,20)]+dev_aex[ncells-x]*(dev_Hy_inc[dgetCell(x,y,nx)]-dev_Hy_inc[dgetCell(x-1,y,nx)]);
+                buffer_Ez += Cezhy*dx*dev_Psi_ezx_inc[dgetCell(x-1,y-1,2*ncells)];
             }
             if(x>=(nx-ncells)&&x!=nx)
             {
-                buffer_Ez = Ceze*dev_Ezic[getCell(x,y,nx+1)]+Cezhy*(dev_Hy_inc[getCell(x,y,nx)]-dev_Hy_inc[getCell(x-1,y,nx)])/kex[x-nx+ncells]
-                    -Cezhy*(dev_Hx_inc[getCell(x,y,nx)]-dev_Hx_inc[getCell(x,y-1,nx)])/kex[x-nx+ncells];
-                dev_Psi_ezx_inc[getCell(x-nx+20,y-1,20)]=dev_bex[x-nx+ncells]*dev_Psi_ezx_inc[getCell(x-nx+20,y-1,20)]+dev_aex[x-nx+ncells]*(dev_Hy_inc[getCell(x,y,nx)]-dev_Hy_inc[getCell(x-1,y,nx)]);
-                buffer_Ez+=Cezhy*dx*dev_Psi_ezx_inc[getCell(x-nx+20,y-1,2*ncells)];
+                buffer_Ez = Ceze*dev_Ezic[dgetCell(x,y,nx+1)]+Cezhy*(dev_Hy_inc[dgetCell(x,y,nx)]-dev_Hy_inc[dgetCell(x-1,y,nx)])/kex[x-nx+ncells]
+                    -Cezhy*(dev_Hx_inc[dgetCell(x,y,nx)]-dev_Hx_inc[dgetCell(x,y-1,nx)])/kex[x-nx+ncells];
+                dev_Psi_ezx_inc[dgetCell(x-nx+20,y-1,20)]=dev_bex[x-nx+ncells]*dev_Psi_ezx_inc[dgetCell(x-nx+20,y-1,20)]+dev_aex[x-nx+ncells]*(dev_Hy_inc[dgetCell(x,y,nx)]-dev_Hy_inc[dgetCell(x-1,y,nx)]);
+                buffer_Ez+=Cezhy*dx*dev_Psi_ezx_inc[dgetCell(x-nx+20,y-1,2*ncells)];
             }
             if(y<=ncells&&y!=0)
             {
-                buffer_Ez = Ceze*dev_Ezic[getCell(x,y,nx+1)]+Cezhy*(dev_Hy_inc[getCell(x,y,nx)]-dev_Hy_inc[getCell(x-1,y,nx)])/kex[ncells-y]
-                    -Cezhy*(dev_Hx_inc[getCell(x,y,nx)]-dev_Hx_inc[getCell(x,y-1,nx)])/kex[ncells-y];
-                dev_Psi_ezy_inc[getCell(x-1,y-1,nx)]=dev_bey[(ncells-y)]*dev_Psi_ezy_inc[getCell(x-1,y-1,nx)]+dev_aey[(ncells-y)]*(dev_Hx_inc[getCell(x,y,nx)]-dev_Hx_inc[getCell(x,y-1,nx)]);
-                buffer_Ez-=Cezhy*dy*dev_Psi_ezy_inc[getCell(x-1,y-1,nx)];
+                buffer_Ez = Ceze*dev_Ezic[dgetCell(x,y,nx+1)]+Cezhy*(dev_Hy_inc[dgetCell(x,y,nx)]-dev_Hy_inc[dgetCell(x-1,y,nx)])/kex[ncells-y]
+                    -Cezhy*(dev_Hx_inc[dgetCell(x,y,nx)]-dev_Hx_inc[dgetCell(x,y-1,nx)])/kex[ncells-y];
+                dev_Psi_ezy_inc[dgetCell(x-1,y-1,nx)]=dev_bey[(ncells-y)]*dev_Psi_ezy_inc[dgetCell(x-1,y-1,nx)]+dev_aey[(ncells-y)]*(dev_Hx_inc[dgetCell(x,y,nx)]-dev_Hx_inc[dgetCell(x,y-1,nx)]);
+                buffer_Ez-=Cezhy*dy*dev_Psi_ezy_inc[dgetCell(x-1,y-1,nx)];
             }
             if(y>=(ny-ncells)&&y!=ny)
             {
-                buffer_Ez = Ceze*dev_Ezic[getCell(x,y,nx+1)]+Cezhy*(dev_Hy_inc[getCell(x,y,nx)]-dev_Hy_inc[getCell(x-1,y,nx)])/kex[y-ny+ncells]
-                    -Cezhy*(dev_Hx_inc[getCell(x,y,nx)]-dev_Hx_inc[getCell(x,y-1,nx)])/kex[y-ny+ncells];
-                dev_Psi_ezy_inc[getCell(x-1,y-ny+20,nx)]=dev_bey[y-ny+ncells]*dev_Psi_ezy_inc[getCell(x-1,y-ny+20,nx)]+dev_aey[y-ny+ncells]*(dev_Hx_inc[getCell(x,y,nx)]-dev_Hx_inc[getCell(x,y-1,nx)]);
-                buffer_Ez-=Cezhy*dy*dev_Psi_ezy_inc[getCell(x-1,y-ny+20,nx)];
+                buffer_Ez = Ceze*dev_Ezic[dgetCell(x,y,nx+1)]+Cezhy*(dev_Hy_inc[dgetCell(x,y,nx)]-dev_Hy_inc[dgetCell(x-1,y,nx)])/kex[y-ny+ncells]
+                    -Cezhy*(dev_Hx_inc[dgetCell(x,y,nx)]-dev_Hx_inc[dgetCell(x,y-1,nx)])/kex[y-ny+ncells];
+                dev_Psi_ezy_inc[dgetCell(x-1,y-ny+20,nx)]=dev_bey[y-ny+ncells]*dev_Psi_ezy_inc[dgetCell(x-1,y-ny+20,nx)]+dev_aey[y-ny+ncells]*(dev_Hx_inc[dgetCell(x,y,nx)]-dev_Hx_inc[dgetCell(x,y-1,nx)]);
+                buffer_Ez-=Cezhy*dy*dev_Psi_ezy_inc[dgetCell(x-1,y-ny+20,nx)];
             }
         }
-        dev_Ezip[getCell(x,y,nx+1)] = dev_Ezic[getCell(x,y,nx+1)];
-        dev_Ezic[getCell(x,y,nx+1)] = buffer_Ez;
+        dev_Ezip[dgetCell(x,y,nx+1)] = dev_Ezic[dgetCell(x,y,nx+1)];
+        dev_Ezic[dgetCell(x,y,nx+1)] = buffer_Ez;
     }
 
 }
@@ -673,17 +683,17 @@ __global__ void calculate_JandM_total(float* f,int* timestep,float*dev_Ez,float*
 
         if(isOnyp(x,y))
         {
-            Ez = (dev_Ez[getCell(x,y+1,nx+1)]+dev_Ez[getCell(x,y,nx+1)])/2;
-            Ez += (dev_Ezic[getCell(x,y+1,nx+1)] + dev_Ezic[getCell(x,y,nx+1)] + dev_Ezip[getCell(x,y+1,nx+1)] + dev_Ezip[getCell(x,y,nx+1)])/4;
-            float Hx = dev_Hx[getCell(x,y,nx)] + dev_Hx_inc[getCell(x,y,nx)];
+            Ez = (dev_Ez[dgetCell(x,y+1,nx+1)]+dev_Ez[dgetCell(x,y,nx+1)])/2;
+            Ez += (dev_Ezic[dgetCell(x,y+1,nx+1)] + dev_Ezic[dgetCell(x,y,nx+1)] + dev_Ezip[dgetCell(x,y+1,nx+1)] + dev_Ezip[dgetCell(x,y,nx+1)])/4;
+            float Hx = dev_Hx[dgetCell(x,y,nx)] + dev_Hx_inc[dgetCell(x,y,nx)];
             cjzyp[index-(nx+ny-4*NF2FFdistfromboundary-2)] += -1*Hx*deltatime*cuexp((float)(-1)*j*(float)2*pi*freq*(float)(*timestep)*deltatime);//cjzyp and cmxyp have nx - 2*NF2FFBoundary -2 elements
             cmxyp[index-(nx+ny-4*NF2FFdistfromboundary-2)] += -1*Ez*deltatime*cuexp((float)-1.0*j*(float)2.0*(float)PI*freq*((float)(*timestep)-0.5)*(float)dt);
         }
         else if(isOnxp(x))//X faces override y faces at their intersections
         {
-            Ez = (dev_Ez[getCell(x,y,nx+1)]+dev_Ez[getCell(x+1,y,nx+1)])/2;
-            Ez += (dev_Ezic[getCell(x+1,y,nx+1)] + dev_Ezic[getCell(x,y,nx+1)] + dev_Ezip[getCell(x+1,y,nx+1)] + dev_Ezip[getCell(x,y,nx+1)])/4;
-            float Hy = dev_Hy[getCell(x,y,nx)] + dev_Hy_inc[getCell(x,y,nx)];
+            Ez = (dev_Ez[dgetCell(x,y,nx+1)]+dev_Ez[dgetCell(x+1,y,nx+1)])/2;
+            Ez += (dev_Ezic[dgetCell(x+1,y,nx+1)] + dev_Ezic[dgetCell(x,y,nx+1)] + dev_Ezip[dgetCell(x+1,y,nx+1)] + dev_Ezip[dgetCell(x,y,nx+1)])/4;
+            float Hy = dev_Hy[dgetCell(x,y,nx)] + dev_Hy_inc[dgetCell(x,y,nx)];
 
             cjzxp[index-(nx-2*NF2FFdistfromboundary-2)] += Hy*deltatime*cuexp(-1*j*2*pi*freq*(float)(*timestep)*(float)dt);//cjzxp and cmyxp have ny-2*NF2FFBound elements
 
@@ -691,18 +701,18 @@ __global__ void calculate_JandM_total(float* f,int* timestep,float*dev_Ez,float*
         }
         else if(isOnyn(x,y))
         {  
-            Ez = (dev_Ez[getCell(x,y,nx+1)]+dev_Ez[getCell(x,y+1,nx+1)])/2;
-            Ez += (dev_Ezic[getCell(x,y+1,nx+1)] + dev_Ezic[getCell(x,y,nx+1)] + dev_Ezip[getCell(x,y+1,nx+1)] + dev_Ezip[getCell(x,y,nx+1)])/4;
-            float Hx=dev_Hx[getCell(x,y,nx)]+dev_Hx_inc[getCell(x,y,nx)];
+            Ez = (dev_Ez[dgetCell(x,y,nx+1)]+dev_Ez[dgetCell(x,y+1,nx+1)])/2;
+            Ez += (dev_Ezic[dgetCell(x,y+1,nx+1)] + dev_Ezic[dgetCell(x,y,nx+1)] + dev_Ezip[dgetCell(x,y+1,nx+1)] + dev_Ezip[dgetCell(x,y,nx+1)])/4;
+            float Hx=dev_Hx[dgetCell(x,y,nx)]+dev_Hx_inc[dgetCell(x,y,nx)];
 
             cjzyn[index] += Hx*(float)dt*cuexp((float)(-1)*j*(float)2.0*(float)PI*freq*(float)(*timestep)*(float)dt);	//cjzyn and cmxyn need to have nx-2*NF2FFbound-2 elements
             cmxyn[index] += Ez*(float)dt*cuexp((float)(-1)*j*(float)2.0*(float)PI*freq*((float)(*timestep)-0.5)*(float)dt);
         }
         else if(isOnxn(x))
         {
-            Ez = (dev_Ez[getCell(x,y,nx+1)]+dev_Ez[getCell(x+1,y,nx+1)])/2;
-            Ez += (dev_Ezic[getCell(x+1,y,nx+1)] + dev_Ezic[getCell(x,y,nx+1)] + dev_Ezip[getCell(x+1,y,nx+1)] + dev_Ezip[getCell(x,y,nx+1)])/4;
-            float Hy = dev_Hy[getCell(x,y,nx)] + dev_Hy_inc[getCell(x,y,nx)];
+            Ez = (dev_Ez[dgetCell(x,y,nx+1)]+dev_Ez[dgetCell(x+1,y,nx+1)])/2;
+            Ez += (dev_Ezic[dgetCell(x+1,y,nx+1)] + dev_Ezic[dgetCell(x,y,nx+1)] + dev_Ezip[dgetCell(x+1,y,nx+1)] + dev_Ezip[dgetCell(x,y,nx+1)])/4;
+            float Hy = dev_Hy[dgetCell(x,y,nx)] + dev_Hy_inc[dgetCell(x,y,nx)];
             cjzxn[index-(2*nx+ny-6*NF2FFdistfromboundary-4)] += -1*Hy*(float)dt*cuexp((float)(-1)*j*(float)2.0*(float)PI*freq*(float)(*timestep)*(float)dt); // cjzxn and cmyxn must have ny-2*NFdistfromboundary elements
             cmyxn[index-(2*nx+ny-6*NF2FFdistfromboundary-4)] += -1*Ez*(float)dt*cuexp(-1.0*j*2.0*(float)PI*freq*((float)(*timestep)-0.5)*(float)dt);
         }
@@ -807,9 +817,9 @@ using namespace std;
 __global__ void scattered_parameter_init(float*eps_r_z,float*sigma_e_z,float*Cezeic,float*Cezeip);
 
 double FDTD_GPU(const vector<double> &arguments) {
-    cout << "calculating FDTD GPU" << endl;
+//    cout << "calculating FDTD GPU" << endl;
 
-    cudaSetDevice(0);
+//    cudaSetDevice(0);
 
     vector<float> image;
     //This is setting the material parameters of the optimization cells.
@@ -841,33 +851,33 @@ double FDTD_GPU(const vector<double> &arguments) {
     //Cezj later if using loop current source
     //float *Cezj = (float*)malloc(sizeof(float)*(1+nx)*(1+ny)); // if using loop current source
 
-    int size = nx + 1;
     float radius;//tumor_radius,tumor_radius_2,tumor_radius_3;
 
     for (int j = 0; j < ny + 1; j++) {
         for (int i = 0; i < nx + 1; i++) {
-            Ez[getCell(i,j,size)] = (float)0;
-            sigma_e_z[getCell(i,j,size)] = 0;
-            eps_r_z[getCell(i,j,size)] = 1;
+            Ez[getCell(i,j,nx+1)] = (float)0;
+            sigma_e_z[getCell(i,j,nx+1)] = 0;
+            eps_r_z[getCell(i,j,nx+1)] = 1;
 
             radius = sqrt(pow( ((float)i-nx/2)*dx,2) + pow( ((float)j-ny/2)*dy,2));
 
             //tumor_radius = sqrt(pow( ((float)i - target_x)*dx,2) + pow( ((float)j-target_y)*dy,2));
             if (radius <= breast_radius) {
-                eps_r_z[getCell(i,j,size)] = (float)image.at(getOptimizationCell(i,j)); //This is the line that should be uncommented if using as forward solver
-                sigma_e_z[getCell(i,j,size)] = (float)image.at(getOptimizationCell(i,j)+9*9);
+                eps_r_z[getCell(i,j,nx+1)] = (float)image.at(getOptimizationCell(i,j)); //This is the line that should be uncommented if using as forward solver
+                sigma_e_z[getCell(i,j,nx+1)] = (float)image.at(getOptimizationCell(i,j)+9*9);
 
-                //eps_r_z[getCell(i,j,size)] = 10;
-                //sigma_e_z[getCell(i,j,size)] = 0.15;
-                //if(tumor_radius <= tumor_size)//delete this if using as forward solver
+                //eps_r_z[getCell(i,j,nx+1)] = 10;
+                //sigma_e_z[getCell(i,j,nx+1)] = 0.15;
+                //if(tumor_radius <= tumor_nx+1)//delete this if using as forward solver
                 //{
-                //	eps_r_z[getCell(i,j,size)] = 60;
-                //	sigma_e_z[getCell(i,j,size)] = 0.7;
+                //	eps_r_z[getCell(i,j,nx+1)] = 60;
+                //	sigma_e_z[getCell(i,j,nx+1)] = 0.7;
                 //}
             }
+
             Ceze[getCell(i,j,nx+1)] = (2*eps_r_z[getCell(i,j,nx+1)]*eps0-dt*sigma_e_z[getCell(i,j,nx+1)])/(2*eps_r_z[getCell(i,j,nx+1)]*eps0+dt*sigma_e_z[getCell(i,j,nx+1)]);
-            Cezhy[getCell(i,j,size)] = (2*dt/dx)/(2*eps_r_z[getCell(i,j,size)]*eps0+dt*sigma_e_z[getCell(i,j,size)]);
-            Cezhx[getCell(i,j,size)] = (2*dt/dy)/(2*eps_r_z[getCell(i,j,size)]*eps0+dt*sigma_e_z[getCell(i,j,size)]);
+            Cezhy[getCell(i,j,nx+1)] = (2*dt/dx)/(2*eps_r_z[getCell(i,j,nx+1)]*eps0+dt*sigma_e_z[getCell(i,j,nx+1)]);
+            Cezhx[getCell(i,j,nx+1)] = (2*dt/dy)/(2*eps_r_z[getCell(i,j,nx+1)]*eps0+dt*sigma_e_z[getCell(i,j,nx+1)]);
         }
     }
 
@@ -880,9 +890,14 @@ double FDTD_GPU(const vector<double> &arguments) {
     for (int i = 0; i < ncells; i++) {
         rho = ((float)i+0.25)/ncells;
         sigma_e_pml[i] = sigma_max*sigma_factor*pow(rho,npml);
+
+        rho = ((float)i+0.75)/ncells;
         sigma_m_pml[i] = (mu0/eps0)*sigma_max*sigma_factor*pow(rho,npml);
-        //cout<<"sigma_e_pml = "<<sigma_e_pml[i]<<endl;
-        //cout<<"sigma_m_pml "<<sigma_m_pml[i]<<endl;
+
+        /*
+        cout<<"sigma_e_pml = "<<sigma_e_pml[i]<<endl;
+        cout<<"sigma_m_pml "<<sigma_m_pml[i]<<endl;
+        */
     }
 
     float *kex = (float*)malloc(sizeof(float)*ncells);
@@ -900,26 +915,30 @@ double FDTD_GPU(const vector<double> &arguments) {
     for (int i = 0; i < ncells; i++) {
         rho = ((float)i+0.25)/ncells;
         kex[i]=pow(rho,npml)*(kmax-1)+1;
-        kmx[i]=pow(rho,npml)*(kmax-1)+1;
         alpha_e[i]=alpha_min+(alpha_max-alpha_min)*rho;
 
         rho = ((float)i+0.75)/ncells;
+        kmx[i]=pow(rho,npml)*(kmax-1)+1;
         alpha_m[i]=(mu0/eps0)*(alpha_min+(alpha_max-alpha_min)*rho);
 
-        aex[i]=((bex[i]-1)*sigma_e_pml[i])/(dx*(sigma_e_pml[i]*kex[i]+alpha_e[i]*kex[i]*kex[i]));
         bex[i]=exp(-1*(dt/eps0)*(sigma_e_pml[i]/kex[i]+alpha_e[i]));
-        amx[i]=(bmx[i]-1)*sigma_m_pml[i]/(dx*(sigma_m_pml[i]*kmx[i]+alpha_m[i]*kmx[i]*kmx[i]));
+        aex[i]=((bex[i]-1)*sigma_e_pml[i])/(dx*(sigma_e_pml[i]*kex[i]+alpha_e[i]*kex[i]*kex[i]));
 
         float argument = -1*(dt/mu0)*((sigma_m_pml[i]/kmx[i])+alpha_m[i]);
         bmx[i]=exp(argument);
-        //cout<<"kex["<<i<<"]= "<<kex[i]<<endl;
-        //cout<<"kmx["<<i<<"]= "<<kmx[i]<<endl;
-        //cout<<"aex["<<i<<"]= "<<aex[i]<<endl;
-        //cout<<"amx["<<i<<"]= "<<amx[i]<<endl;
-        //cout<<"bex["<<i<<"]= "<<bex[i]<<endl;
-        //cout<<"bmx["<<i<<"]= "<<bmx[i]<<endl;
-        //cout<<"alpha_e = "<<alpha_e[i]<<endl;
-        //cout<<"alpha_m = "<<alpha_m[i]<<endl;
+        amx[i]=(bmx[i]-1)*sigma_m_pml[i]/(dx*(sigma_m_pml[i]*kmx[i]+alpha_m[i]*kmx[i]*kmx[i]));
+
+        /*
+        cout<<"kex["<<i<<"]= "<<kex[i]<<endl;
+        cout<<"kmx["<<i<<"]= "<<kmx[i]<<endl;
+        cout<<"aex["<<i<<"]= "<<aex[i]<<endl;
+        cout<<"amx["<<i<<"]= "<<amx[i]<<endl;
+        cout<<"bex["<<i<<"]= "<<bex[i]<<endl;
+        cout<<"bmx["<<i<<"]= "<<bmx[i]<<endl;
+        cout<<"alpha_e = "<<alpha_e[i]<<endl;
+        cout<<"alpha_m = "<<alpha_m[i]<<endl;
+        cout << endl;
+        */
     }
 
     float *Psi_ezy = (float*)malloc(sizeof(float)*ny*20);
@@ -927,6 +946,7 @@ double FDTD_GPU(const vector<double> &arguments) {
     float *Psi_hyx = (float*)malloc(sizeof(float)*ny*20);
     float *Psi_hxy = (float*)malloc(sizeof(float)*nx*20);
 
+    /*
     for (int i = 0; i < nx * 20; i++) {
         Psi_ezy[i] = 0.0;
         Psi_hxy[i] = 0.0;
@@ -936,6 +956,7 @@ double FDTD_GPU(const vector<double> &arguments) {
         Psi_ezx[i] = 0.0;
         Psi_hyx[i] = 0.0;
     }
+    */
 
     float *D = (float*)malloc(sizeof(float)*numberofexcitationangles*numberofobservationangles);//D = (float*)malloc(numberofobservationangles*sizeof(float));
 
@@ -1093,6 +1114,12 @@ double FDTD_GPU(const vector<double> &arguments) {
     };//I've just hardcoded the measurement values.  Maybe later we'll read them from a text file.
 
 
+/*
+    for (int i = 0; i < numberofexcitationangles*numberofobservationangles; i++) {
+        cout << "D[" << i << " ]: " << D[i] << endl;
+    }
+    */
+
     float fit;
     fit = fitness(D, numberofobservationangles * numberofexcitationangles, measurement);
 
@@ -1167,7 +1194,7 @@ double FDTD_GPU(const vector<double> &arguments) {
     cudaFree(dev_Psi_hyx);
     cudaFree(dev_Psi_hxy);
 
-    cout << "fitness is: " << fit << endl;
+//    cout << "fitness is: " << fit << endl;
     return (double)fit;
 }
 
@@ -1177,8 +1204,8 @@ __global__ void scattered_parameter_init(float*eps_r_z,float*sigma_e_z,float*Cez
     int y=threadIdx.y+blockDim.y*blockIdx.y;
     if(x<(nx+1)&&y<(ny+1))
     {
-        Cezeic[getCell(x,y,nx+1)] = (2*(eps0-eps0*eps_r_z[getCell(x,y,nx+1)])-sigma_e_z[getCell(x,y,nx+1)]*dt)/(2*eps0*eps_r_z[getCell(x,y,nx+1)]+sigma_e_z[getCell(x,y,nx+1)]*dt);
-        Cezeip[getCell(x,y,nx+1)] = -1*(2*(eps0-eps0*eps_r_z[getCell(x,y,nx+1)])+sigma_e_z[getCell(x,y,nx+1)]*dt)/(2*eps0*eps_r_z[getCell(x,y,nx+1)]+sigma_e_z[getCell(x,y,nx+1)]*dt);
+        Cezeic[dgetCell(x,y,nx+1)] = (2*(eps0-eps0*eps_r_z[dgetCell(x,y,nx+1)])-sigma_e_z[dgetCell(x,y,nx+1)]*dt)/(2*eps0*eps_r_z[dgetCell(x,y,nx+1)]+sigma_e_z[dgetCell(x,y,nx+1)]*dt);
+        Cezeip[dgetCell(x,y,nx+1)] = -1*(2*(eps0-eps0*eps_r_z[dgetCell(x,y,nx+1)])+sigma_e_z[dgetCell(x,y,nx+1)]*dt)/(2*eps0*eps_r_z[dgetCell(x,y,nx+1)]+sigma_e_z[dgetCell(x,y,nx+1)]*dt);
 
     }
 }

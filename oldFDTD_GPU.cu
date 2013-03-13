@@ -1091,6 +1091,19 @@ double FDTD_GPU(const vector<double> &arguments)
     aex_init(aex,sigma_e_pml,kex,alpha_e,bex);
     bmx_init(bmx,sigma_m_pml,kmx,alpha_m);
     amx_init(amx,sigma_m_pml,kmx,alpha_m,bmx);
+
+    for (int i = 0; i < 10; i++) {
+        cout<<"kex["<<i<<"]= "<<kex[i]<<endl;
+        cout<<"kmx["<<i<<"]= "<<kmx[i]<<endl;
+        cout<<"aex["<<i<<"]= "<<aex[i]<<endl;
+        cout<<"amx["<<i<<"]= "<<amx[i]<<endl;
+        cout<<"bex["<<i<<"]= "<<bex[i]<<endl;
+        cout<<"bmx["<<i<<"]= "<<bmx[i]<<endl;
+        cout<<"alpha_e = "<<alpha_e[i]<<endl;
+        cout<<"alpha_m = "<<alpha_m[i]<<endl;
+        cout << endl;
+    }
+
     //Jz_init(Jz);
     //system("pause");   
     //FILE* file = fopen("results.txt", "w");
@@ -1151,14 +1164,18 @@ double FDTD_GPU(const vector<double> &arguments)
     cudaMalloc(&dev_Ceze,sizeof(float)*(nx+1)*(ny+1));
     cudaMalloc(&dev_Cezhy,sizeof(float)*(nx+1)*(ny+1));
 
-
     //cudaMalloc(&dev_Cezj,sizeof(float)*(nx+1)*(ny+1)); if using current source
 
     error = cudaGetLastError();
-    if(error != cudaSuccess) {
-        printf("%s\n",cudaGetErrorString(error));
+    if (error != cudaSuccess) {
+        printf("Error after cuda Mallocs: %s\n",cudaGetErrorString(error));
     }
+
     Field_reset<<<grid,block>>>(dev_Ez, dev_Hy, dev_Hx, dev_Psi_ezy, dev_Psi_ezx, dev_Psi_hyx, dev_Psi_hxy,cjzyn,cjzxp,cjzyp,cjzxn,cmxyn,cmyxp,cmxyp,cmyxn);
+    error = cudaGetLastError();
+    if (error != cudaSuccess) {
+        printf("Error after field reset: %s\n",cudaGetErrorString(error));
+    }
     //Field_reset is also good for making all these values zero.
 
 
@@ -1172,7 +1189,7 @@ double FDTD_GPU(const vector<double> &arguments)
     cudaMemcpy(dev_Cezhy,Cezhy,sizeof(float)*(nx+1)*(ny+1),cudaMemcpyHostToDevice);
     error = cudaGetLastError();
     if(error != cudaSuccess) {
-        printf("%s\n",cudaGetErrorString(error));
+        printf("Error after cuda Memcpy: %s\n",cudaGetErrorString(error));
     }
 
     int*dev_i;
@@ -1263,6 +1280,10 @@ double FDTD_GPU(const vector<double> &arguments)
         0.0469428 , 0.049667 , 0.0453111 , 0.0370016 , 0.0278006 , 0.0201062 , 0.0173687 , 0.020228 , 0.0242543 , 0.0264199 , 0.0275476 , 0.027771 , 0.0262174 , 0.0237332 , 0.0219206 , 0.0212424 , 0.0214967 , 0.0226845 , 0.0248514 , 0.0275874 , 0.0300439 , 0.0318892 , 0.0340621 , 0.0369823 , 0.0388068 , 0.0379494 , 0.0350817 , 0.030462 , 0.0230471 , 0.0133404 , 0.00457234 , 0.00152755 , 0.00874873 , 0.0260448 , 0.0463293 , 0.0633742 , 0.0751071 , 0.0775575 , 0.0756597 , 0.0916989 , 0.141021 , 0.22185 , 0.328433 , 0.44207 , 0.524772 , 0.544711 , 0.498668 , 0.407614 , 0.29953 , 0.199594 , 0.128704 , 0.0929922 , 0.0772499 , 0.0654169 , 0.0536587 , 0.0399619 , 0.0255793 , 0.0193488 , 0.0253531 , 0.0373143 , 
     };//I've just hardcoded the measurement values.  Maybe later we'll read them from a text file.
 
+
+    for (int i = 0; i < numberofexcitationangles*numberofobservationangles; i++) {
+        cout << "D[" << i << " ]: " << D[i] << endl;
+    }
 
     float fit;
     fit=fitness(D,numberofobservationangles*numberofexcitationangles, measurement);
@@ -1806,6 +1827,7 @@ void bex_init(float*bex ,float*sigma_e_pml,float*kex,float*alpha_e_x)
     for(int i=0;i<size;i++)
     {
         bex[i]=exp(-1*(dt/eps0)*(sigma_e_pml[i]/kex[i]+alpha_e_x[i]));
+        //cout<<"bex["<<i<<"] = "<<bex[i]<<endl;
     }
 }
 
@@ -1854,7 +1876,7 @@ void amx_init(float*amx,float*sigma_m_pml,float*kmx,float*alpha_m_x,float*bmx)
     for(int i=0;i<size;i++)
     {
         amx[i]=(bmx[i]-1)*sigma_m_pml[i]/(dx*(sigma_m_pml[i]*kmx[i]+alpha_m_x[i]*kmx[i]*kmx[i]));
-        //	cout<<" amx = "<<amx[i]<<endl;
+        cout<<" amx = "<<amx[i]<<endl;
     }
 }
 
@@ -1882,7 +1904,7 @@ void alpha_e_init(float*alpha_e)
     {
         rho = ((float)i+0.25)/ncells;
         alpha_e[i]=alpha_min+(alpha_max-alpha_min)*rho;
-        //	cout<<"alpha_e = "<<alpha_e[i]<<endl;
+        	//cout<<"alpha_e = "<<alpha_e[i]<<endl;
     }
 }
 
@@ -1906,7 +1928,7 @@ void k_e_init(float*k)
     {
         rho = ((float)i+0.25)/ncells;
         k[i]=pow(rho,npml)*(kmax-1)+1;
-        //cout<<"k ["<<i<<"]= "<<k[i]<<endl;
+        //cout<<"kex ["<<i<<"]= "<<k[i]<<endl;
 
     }
 }
@@ -1919,7 +1941,7 @@ void k_m_init(float*k)
     {
         rho = ((float)i+0.75)/ncells;
         k[i]=pow(rho,npml)*(kmax-1)+1;
-        //cout<<"k ["<<i<<"]= "<<k[i]<<endl;
+        //cout<<"kmx ["<<i<<"]= "<<k[i]<<endl;
 
     }
 }
@@ -1933,7 +1955,7 @@ void sigma_e_pml_init(float* sigma_e_pml)
     {
         rho = ((float)i+0.25)/ncells;
         sigma_e_pml[i]=sigma_max*sigma_factor*pow(rho,npml);
-        //cout<<"sigma_e_pml = "<<sigma_e_pml[i]<<endl;
+        cout<<"sigma_e_pml = "<<sigma_e_pml[i]<<endl;
     }
 }
 
@@ -1946,7 +1968,7 @@ void sigma_m_pml_init(float*sigma_m_pml,float*sigma_e_pml)
     {
         rho = ((float)i+0.75)/ncells;
         sigma_m_pml[i]=(mu0/eps0)*sigma_max*sigma_factor*pow(rho,npml);
-        //cout<<"sigma_m_pml "<<sigma_m_pml[i]<<endl;
+        cout<<"sigma_m_pml "<<sigma_m_pml[i]<<endl;
     }
 }
 
