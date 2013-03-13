@@ -60,9 +60,9 @@ target_link_libraries(fdtd_cpu undvc_common asynchronous_algorithms synchronous_
 if (CUDA_FOUND) 
 #use this for shale
 #cuda_add_executable(fdtd_gpu test FDTD_GPU.cu FDTD_common FDTD_CPU OPTIONS --compiler-bindir mpicxx)
-    cuda_add_executable(fdtd_gpu_new test FDTD_GPU.cu FDTD_common FDTD_CPU OPTIONS -DCUDA)
-    target_link_libraries(fdtd_gpu_new undvc_common asynchronous_algorithms synchronous_algorithms tao_util mpi_algorithms)
-    set_target_properties(fdtd_gpu_new PROPERTIES COMPILE_DEFINITIONS CUDA)
+    cuda_add_executable(fdtd_gpu test FDTD_GPU.cu FDTD_common FDTD_CPU OPTIONS -DCUDA)
+    target_link_libraries(fdtd_gpu undvc_common asynchronous_algorithms synchronous_algorithms tao_util mpi_algorithms)
+    set_target_properties(fdtd_gpu PROPERTIES COMPILE_DEFINITIONS CUDA)
 endif (CUDA_FOUND)
 
 
