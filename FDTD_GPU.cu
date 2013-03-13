@@ -238,12 +238,11 @@ __global__ void calculate_JandM(float* f,int* timestep,float*dev_Ez,float*dev_Hy
         int x = getxfromthreadIdNF2FF(index);
         int y = getyfromthreadIdNF2FF(index);
 
-        float Ez;
         cuComplex pi(PI , 0);
         cuComplex two(2.0,0.0);
         cuComplex negativeone(-1.0,0);
         cuComplex deltatime(dt,0);
-
+    	float Ez;
         if(isOnyp(x,y))
         {
             Ez = (dev_Ez[dgetCell(x,y+1,nx+1)]+dev_Ez[dgetCell(x,y,nx+1)])/2;
@@ -421,7 +420,7 @@ __global__ void E_field_update(int *i,float*dev_Ez,float*dev_Hy,float*dev_Hx,flo
     float buffer_Ez;
     //float Ceh = (dt/dx)/(eps0);
     float Cezj = -dt/eps0;
-    float length_offset;
+   
 
     if(x<=nx&&y<=ny)
     {
@@ -554,15 +553,6 @@ __global__ void Field_reset(float* Ez, float* Hy, float* Hx, float* Psi_ezy,floa
 
     if(index<=size_NF2FF_total)
     {
-        const cuComplex j(0.0,1.0);
-        int x = getxfromthreadIdNF2FF(index);
-        int y = getyfromthreadIdNF2FF(index);
-
-        float Ez;
-        cuComplex pi(PI , 0);
-        cuComplex two(2.0,0.0);
-        cuComplex negativeone(-1.0,0);
-        cuComplex deltatime(dt,0);
 
         if(index<size_cjzy)
         {
@@ -584,69 +574,7 @@ __global__ void Field_reset(float* Ez, float* Hy, float* Hx, float* Psi_ezy,floa
 
 }
 
-__global__ void E_inc_update(int *i,float*dev_Hy_inc,float*dev_Hx_inc,float*dev_Psi_ezx_inc,float*dev_aex,float*dev_aey,float*dev_bex,float*dev_bey,float*dev_Psi_ezy_inc,float*kex,float*dev_Ezip,float*dev_Ezic,float*Phi)
-{
-    int x=threadIdx.x+blockDim.x*blockIdx.x;
-    int y=threadIdx.y+blockDim.y*blockIdx.y;
-    //	int offset = x+y*blockDim.x*gridDim.x;
-    float buffer_Ez;
-    //float Ceh = (dt/dx)/(eps0);
-    float Cezj = -dt/eps0;
-    float Ceze = 1;
-    float Cezhy = (dt/(dx*eps0));
 
-    if(x<=nx&&y<=ny)
-    {
-
-        //if(x==0||x==nx||y==0||y==ny)
-        if(x==nx||y==ny||x==0||y==0)
-        {
-            buffer_Ez=0.0;
-        }
-        else
-        {
-            buffer_Ez = Ceze*dev_Ezic[dgetCell(x,y,nx+1)]+Cezhy*(dev_Hy_inc[dgetCell(x,y,nx)]-dev_Hy_inc[dgetCell(x-1,y,nx)])
-                -Cezhy*(dev_Hx_inc[dgetCell(x,y,nx)]-dev_Hx_inc[dgetCell(x,y-1,nx)]);
-
-            if(x==((int)source_x)&&y==(int)(source_y))
-            {
-                //buffer_Ez=buffer_Ez + Cezj*dev_Jz[*i];
-                buffer_Ez=buffer_Ez + 100*Cezj*fwf((float)(*i),0,0,0,0);
-            }
-            if(x<=ncells&&x!=0)
-            {
-                buffer_Ez = Ceze*dev_Ezic[dgetCell(x,y,nx+1)]+Cezhy*(dev_Hy_inc[dgetCell(x,y,nx)]-dev_Hy_inc[dgetCell(x-1,y,nx)])/kex[ncells-x]
-                    -Cezhy*(dev_Hx_inc[dgetCell(x,y,nx)]-dev_Hx_inc[dgetCell(x,y-1,nx)])/kex[ncells-x];
-                dev_Psi_ezx_inc[dgetCell(x-1,y-1,20)] = dev_bex[ncells-x]*dev_Psi_ezx_inc[dgetCell(x-1,y-1,20)]+dev_aex[ncells-x]*(dev_Hy_inc[dgetCell(x,y,nx)]-dev_Hy_inc[dgetCell(x-1,y,nx)]);
-                buffer_Ez += Cezhy*dx*dev_Psi_ezx_inc[dgetCell(x-1,y-1,2*ncells)];
-            }
-            if(x>=(nx-ncells)&&x!=nx)
-            {
-                buffer_Ez = Ceze*dev_Ezic[dgetCell(x,y,nx+1)]+Cezhy*(dev_Hy_inc[dgetCell(x,y,nx)]-dev_Hy_inc[dgetCell(x-1,y,nx)])/kex[x-nx+ncells]
-                    -Cezhy*(dev_Hx_inc[dgetCell(x,y,nx)]-dev_Hx_inc[dgetCell(x,y-1,nx)])/kex[x-nx+ncells];
-                dev_Psi_ezx_inc[dgetCell(x-nx+20,y-1,20)]=dev_bex[x-nx+ncells]*dev_Psi_ezx_inc[dgetCell(x-nx+20,y-1,20)]+dev_aex[x-nx+ncells]*(dev_Hy_inc[dgetCell(x,y,nx)]-dev_Hy_inc[dgetCell(x-1,y,nx)]);
-                buffer_Ez+=Cezhy*dx*dev_Psi_ezx_inc[dgetCell(x-nx+20,y-1,2*ncells)];
-            }
-            if(y<=ncells&&y!=0)
-            {
-                buffer_Ez = Ceze*dev_Ezic[dgetCell(x,y,nx+1)]+Cezhy*(dev_Hy_inc[dgetCell(x,y,nx)]-dev_Hy_inc[dgetCell(x-1,y,nx)])/kex[ncells-y]
-                    -Cezhy*(dev_Hx_inc[dgetCell(x,y,nx)]-dev_Hx_inc[dgetCell(x,y-1,nx)])/kex[ncells-y];
-                dev_Psi_ezy_inc[dgetCell(x-1,y-1,nx)]=dev_bey[(ncells-y)]*dev_Psi_ezy_inc[dgetCell(x-1,y-1,nx)]+dev_aey[(ncells-y)]*(dev_Hx_inc[dgetCell(x,y,nx)]-dev_Hx_inc[dgetCell(x,y-1,nx)]);
-                buffer_Ez-=Cezhy*dy*dev_Psi_ezy_inc[dgetCell(x-1,y-1,nx)];
-            }
-            if(y>=(ny-ncells)&&y!=ny)
-            {
-                buffer_Ez = Ceze*dev_Ezic[dgetCell(x,y,nx+1)]+Cezhy*(dev_Hy_inc[dgetCell(x,y,nx)]-dev_Hy_inc[dgetCell(x-1,y,nx)])/kex[y-ny+ncells]
-                    -Cezhy*(dev_Hx_inc[dgetCell(x,y,nx)]-dev_Hx_inc[dgetCell(x,y-1,nx)])/kex[y-ny+ncells];
-                dev_Psi_ezy_inc[dgetCell(x-1,y-ny+20,nx)]=dev_bey[y-ny+ncells]*dev_Psi_ezy_inc[dgetCell(x-1,y-ny+20,nx)]+dev_aey[y-ny+ncells]*(dev_Hx_inc[dgetCell(x,y,nx)]-dev_Hx_inc[dgetCell(x,y-1,nx)]);
-                buffer_Ez-=Cezhy*dy*dev_Psi_ezy_inc[dgetCell(x-1,y-ny+20,nx)];
-            }
-        }
-        dev_Ezip[dgetCell(x,y,nx+1)] = dev_Ezic[dgetCell(x,y,nx+1)];
-        dev_Ezic[dgetCell(x,y,nx+1)] = buffer_Ez;
-    }
-
-}
 
 float calc_radiated_power(cuComplex *cjzxp,cuComplex *cjzyp,cuComplex *cjzxn,cuComplex *cjzyn,cuComplex *cmxyp,cuComplex *cmyxp,cuComplex *cmxyn,cuComplex *cmyxn)
 {
@@ -835,9 +763,9 @@ void N2FPostProcess (float* D,float f, cuComplex *N,cuComplex *L,cuComplex *cjzx
 
 using namespace std;
 
-__global__ void scattered_parameter_init(float*eps_r_z,float*sigma_e_z,float*Cezeic,float*Cezeip);
+__global__ void scattered_parameter_init(float*eps_r_z,float*sigma_e_z,float*Cezeic,float*Cezeip,float*Ceze,float*Cezhy);
 
-double FDTD_GPU(const vector<double> &arguments) {
+float FDTD_GPU(const vector<double> &arguments) {
 //    cout << "calculating FDTD GPU" << endl;
 
 //    cudaSetDevice(0);
@@ -851,7 +779,7 @@ double FDTD_GPU(const vector<double> &arguments) {
 
     for (int lerp = 81; lerp < 81 * 2; lerp++) {
         image.push_back((float)arguments.at(lerp));
-        // image.push_back(0);
+         //image.push_back(0);
     }
     cudaError_t error;
 
@@ -863,12 +791,9 @@ double FDTD_GPU(const vector<double> &arguments) {
     dim3 grid(grid_x, grid_y);
     dim3 block(22, 22);
 
-    float *Ez = (float*)malloc(sizeof(float)*(1+nx)*(1+ny));
     float *eps_r_z = (float*)malloc(sizeof(float)*(1+nx)*(1+ny));
     float *sigma_e_z = (float*)malloc(sizeof(float)*(1+nx)*(1+ny));
-    float *Ceze = (float*)malloc(sizeof(float)*(1+nx)*(1+ny));
-    float *Cezhy = (float*)malloc(sizeof(float)*(1+nx)*(1+ny));
-    float *Cezhx = (float*)malloc(sizeof(float)*(1+nx)*(1+ny));
+
     //Cezj later if using loop current source
     //float *Cezj = (float*)malloc(sizeof(float)*(1+nx)*(1+ny)); // if using loop current source
 
@@ -876,7 +801,7 @@ double FDTD_GPU(const vector<double> &arguments) {
 
     for (int j = 0; j < ny + 1; j++) {
         for (int i = 0; i < nx + 1; i++) {
-            Ez[getCell(i,j,nx+1)] = (float)0;
+           
             sigma_e_z[getCell(i,j,nx+1)] = 0;
             eps_r_z[getCell(i,j,nx+1)] = 1;
 
@@ -896,9 +821,7 @@ double FDTD_GPU(const vector<double> &arguments) {
                 //}
             }
 
-            Ceze[getCell(i,j,nx+1)] = (2*eps_r_z[getCell(i,j,nx+1)]*eps0-dt*sigma_e_z[getCell(i,j,nx+1)])/(2*eps_r_z[getCell(i,j,nx+1)]*eps0+dt*sigma_e_z[getCell(i,j,nx+1)]);
-            Cezhy[getCell(i,j,nx+1)] = (2*dt/dx)/(2*eps_r_z[getCell(i,j,nx+1)]*eps0+dt*sigma_e_z[getCell(i,j,nx+1)]);
-            Cezhx[getCell(i,j,nx+1)] = (2*dt/dy)/(2*eps_r_z[getCell(i,j,nx+1)]*eps0+dt*sigma_e_z[getCell(i,j,nx+1)]);
+           
         }
     }
 
@@ -962,27 +885,9 @@ double FDTD_GPU(const vector<double> &arguments) {
         */
     }
 
-    float *Psi_ezy = (float*)malloc(sizeof(float)*ny*20);
-    float *Psi_ezx = (float*)malloc(sizeof(float)*nx*20);
-    float *Psi_hyx = (float*)malloc(sizeof(float)*ny*20);
-    float *Psi_hxy = (float*)malloc(sizeof(float)*nx*20);
 
-    /*
-    for (int i = 0; i < nx * 20; i++) {
-        Psi_ezy[i] = 0.0;
-        Psi_hxy[i] = 0.0;
-    }
-
-    for (int i = 0; i< ny * 20; i++) {
-        Psi_ezx[i] = 0.0;
-        Psi_hyx[i] = 0.0;
-    }
-    */
 
     float *D = (float*)malloc(sizeof(float)*numberofexcitationangles*numberofobservationangles);//D = (float*)malloc(numberofobservationangles*sizeof(float));
-
-    float *Hy = (float*)malloc(sizeof(float)*nx*ny);
-    float *Hx = (float*)malloc(sizeof(float)*nx*ny);
 
     //This are output values from the device
     cuComplex *hcjzyp = (cuComplex*)malloc(sizeof(cuComplex)*size_cjzy);
@@ -1000,7 +905,7 @@ double FDTD_GPU(const vector<double> &arguments) {
     cuComplex *cjzxp, *cjzyp, *cjzxn, *cjzyn, *cmxyp, *cmyxp, *cmxyn, *cmyxn;
 
     float *dev_freq, *dev_Phi;
-    float *dev_Ceze, *dev_Cezhy, *dev_Cezhx, *dev_bex, *dev_aex, *dev_bmx, *dev_amx, *dev_kex, *dev_kmx;//dev_Cezj if using loop current source
+    float *dev_Ceze, *dev_Cezhy, *dev_bex, *dev_aex, *dev_bmx, *dev_amx, *dev_kex, *dev_kmx;//dev_Cezj if using loop current source
     float *dev_Ez, *dev_Hy, *dev_Hx;
 
     float *dev_Psi_ezy, *dev_Psi_ezx, *dev_Psi_hyx, *dev_Psi_hxy;
@@ -1013,10 +918,12 @@ double FDTD_GPU(const vector<double> &arguments) {
     cudaCheck( cudaMalloc(&dev_sigma_e_z,sizeof(float)*(nx+1)*(ny+1)) );
     cudaCheck( cudaMalloc(&dev_Cezeic,sizeof(float)*(nx+1)*(ny+1)) );
     cudaCheck( cudaMalloc(&dev_Cezeip,sizeof(float)*(nx+1)*(ny+1)) );
+	cudaCheck( cudaMalloc(&dev_Ceze,sizeof(float)*(nx+1)*(ny+1)) );
+    cudaCheck( cudaMalloc(&dev_Cezhy,sizeof(float)*(nx+1)*(ny+1)) );
     cudaCheck( cudaMemcpy(dev_eps_r_z,eps_r_z,sizeof(float)*(nx+1)*(ny+1),cudaMemcpyHostToDevice) );
     cudaCheck( cudaMemcpy(dev_sigma_e_z,sigma_e_z,sizeof(float)*(nx+1)*(ny+1),cudaMemcpyHostToDevice) );
 
-    scattered_parameter_init<<<grid,block>>>(dev_eps_r_z,dev_sigma_e_z,dev_Cezeic,dev_Cezeip);
+    scattered_parameter_init<<<grid,block>>>(dev_eps_r_z,dev_sigma_e_z,dev_Cezeic,dev_Cezeip,dev_Ceze,dev_Cezhy);
     cudaCheckLastError("scattered_parameter_init kernel failed");
 
     //float *Cezeic = (float*)malloc((sizeof(float))*(nx+1)*(ny+1));
@@ -1052,8 +959,7 @@ double FDTD_GPU(const vector<double> &arguments) {
     cudaCheck(cudaMalloc(&dev_bmx,sizeof(float)*10));
     cudaCheck(cudaMalloc(&dev_amx,sizeof(float)*10));
     cudaCheck(cudaMalloc(&dev_aex,sizeof(float)*10));
-    cudaCheck(cudaMalloc(&dev_Ceze,sizeof(float)*(nx+1)*(ny+1)));
-    cudaCheck(cudaMalloc(&dev_Cezhy,sizeof(float)*(nx+1)*(ny+1)));
+   
 
 
     //cudaMalloc(&dev_Cezj,sizeof(float)*(nx+1)*(ny+1)); if using current source
@@ -1069,17 +975,14 @@ double FDTD_GPU(const vector<double> &arguments) {
     cudaCheck(cudaMemcpy(dev_bex,bex,sizeof(float)*10,cudaMemcpyHostToDevice));
     cudaCheck(cudaMemcpy(dev_bmx,bmx,sizeof(float)*10,cudaMemcpyHostToDevice));
     cudaCheck(cudaMemcpy(dev_amx,amx,sizeof(float)*10,cudaMemcpyHostToDevice));
-    cudaCheck(cudaMemcpy(dev_Ceze,Ceze,sizeof(float)*(nx+1)*(ny+1),cudaMemcpyHostToDevice));
-    cudaCheck(cudaMemcpy(dev_Cezhy,Cezhy,sizeof(float)*(nx+1)*(ny+1),cudaMemcpyHostToDevice));
 
     int *dev_i;
     cudaCheck( cudaMalloc(&dev_i,sizeof(int)) );
-    float test_Ez;
+  
 
     dim3 gridNF2FF((int)ceil(size_NF2FF_total/512.0));
     dim3 blockNF2FF(512);
 
-    float test_Ez_2;
     float Phi;
 
     for(int Phi_index = 0; Phi_index < numberofexcitationangles; Phi_index++) {
@@ -1147,15 +1050,14 @@ double FDTD_GPU(const vector<double> &arguments) {
     fit = fitness(D, numberofobservationangles * numberofexcitationangles, measurement);
 
     error = cudaGetLastError();
+	if(error != cudaSuccess)
+	{
+		cout<<error<<endl;
+	}
 
-    free(Ceze);
-    free(Cezhy);
-    free(Cezhx);
-    free(Ez);
+
     free(eps_r_z);
     free(sigma_e_z);
-    free(Hy);
-    free(Hx);
     free(kex);
     free(aex);
     free(bex);
@@ -1165,10 +1067,6 @@ double FDTD_GPU(const vector<double> &arguments) {
     free(alpha_m);
     free(sigma_e_pml);
     free(sigma_m_pml);
-    free(Psi_ezy);
-    free(Psi_ezx);
-    free(Psi_hyx);
-    free(Psi_hxy);
     free(kmx);
     free(D);
 
@@ -1201,7 +1099,7 @@ double FDTD_GPU(const vector<double> &arguments) {
 
     cudaCheck( cudaFree(dev_Ceze));
     cudaCheck( cudaFree(dev_Cezhy));
-    cudaCheck( cudaFree(dev_Cezhx));
+
 
     cudaCheck( cudaFree(dev_bex));
     cudaCheck( cudaFree(dev_aex));
@@ -1217,18 +1115,22 @@ double FDTD_GPU(const vector<double> &arguments) {
     cudaCheck( cudaFree(dev_Psi_hyx));
     cudaCheck( cudaFree(dev_Psi_hxy));
 
-//    cout << "fitness is: " << fit << endl;
+   // cout << "fitness is: " << fit << endl;
     return (double)fit;
 }
 
-__global__ void scattered_parameter_init(float *eps_r_z, float *sigma_e_z, float *Cezeic, float *Cezeip)
+__global__ void scattered_parameter_init(float *eps_r_z, float *sigma_e_z, float *Cezeic, float *Cezeip, float *Ceze, float *Cezhy)
 {
     int x=threadIdx.x+blockDim.x*blockIdx.x;
     int y=threadIdx.y+blockDim.y*blockIdx.y;
+	int i = x;
+	int j = y;
     if(x<(nx+1)&&y<(ny+1))
     {
         Cezeic[dgetCell(x,y,nx+1)] = (2*(eps0-eps0*eps_r_z[dgetCell(x,y,nx+1)])-sigma_e_z[dgetCell(x,y,nx+1)]*dt)/(2*eps0*eps_r_z[dgetCell(x,y,nx+1)]+sigma_e_z[dgetCell(x,y,nx+1)]*dt);
         Cezeip[dgetCell(x,y,nx+1)] = -1*(2*(eps0-eps0*eps_r_z[dgetCell(x,y,nx+1)])+sigma_e_z[dgetCell(x,y,nx+1)]*dt)/(2*eps0*eps_r_z[dgetCell(x,y,nx+1)]+sigma_e_z[dgetCell(x,y,nx+1)]*dt);
-
+		
+        Ceze[getCell(i,j,nx+1)] = (2*eps_r_z[getCell(i,j,nx+1)]*eps0-dt*sigma_e_z[getCell(i,j,nx+1)])/(2*eps_r_z[getCell(i,j,nx+1)]*eps0+dt*sigma_e_z[getCell(i,j,nx+1)]);
+        Cezhy[getCell(i,j,nx+1)] = (2*dt/dx)/(2*eps_r_z[getCell(i,j,nx+1)]*eps0+dt*sigma_e_z[getCell(i,j,nx+1)]);
     }
 }
