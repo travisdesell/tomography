@@ -36,9 +36,15 @@
 #define HANDLE_ERROR( err ) err
 #define sigma_max_pml (3/(200*PI*dx))
 #define size_NF2FF_total (2*nx-8*NF2FFdistfromboundary+2*ny-4)
-#define size_cjzy (nx-2*NF2FFdistfromboundary-2)
-#define size_cjzx (ny-2*NF2FFdistfromboundary)
-#define numberofobservationangles  60
+#define startfrequency (1e9)
+#define stopfrequency (1e10)
+#define deltafreq ((stopfrequency-startfrequency)/(numberoffrequencies-1))
+#define numberoffrequencies 10
+#define size_cjzy ((nx-2*NF2FFdistfromboundary-2)*(numberoffrequencies))
+#define size_cjzx ((ny-2*NF2FFdistfromboundary)*(numberoffrequencies))
+#define size_y_side (nx-2*NF2FFdistfromboundary-2)
+#define size_x_side (ny-2*NF2FFdistfromboundary)
+#define numberofobservationangles  100
 #define t0 (sqrt(20.0)*tau) // t0 = sqrt(20)*tau
 #define l0 (nx*dx/2-breast_radius) 
 #define pwidth 10

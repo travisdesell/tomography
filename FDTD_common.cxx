@@ -60,4 +60,3 @@ float fitness(float* D,int max_index, float* measurement)
 
     return fit;
 }
-
