@@ -9,7 +9,7 @@ set (TOMOGRAPHY_VERSION_MINOR 0)
 set(CMAKE_CXX_FLAGS "-g -Wall -O3 -funroll-loops -msse3")
 
 #turn this on for shale
-#set(BOOST_ROOT /home/tdesell/boost-build)
+set(BOOST_ROOT /home/tdesell/boost-build)
 #set(CMAKE_INCLUDE_PATH /home/tdesell/boost-build/ ${CMAKE_INCLUDE_PATH})
 #set(CMAKE_LIBRARY_PATH /home/tdesell/boost-build/ ${CMAKE_LIBRARY_PATH} /opt/local/lib)
 
@@ -59,8 +59,8 @@ target_link_libraries(fdtd_cpu undvc_common asynchronous_algorithms synchronous_
 
 if (CUDA_FOUND) 
 #use this for shale
-#cuda_add_executable(fdtd_gpu test FDTD_GPU.cu FDTD_common FDTD_CPU OPTIONS --compiler-bindir mpicxx)
-    cuda_add_executable(fdtd_gpu test FDTD_GPU.cu FDTD_common FDTD_CPU OPTIONS -DCUDA)
+    cuda_add_executable(fdtd_gpu test FDTD_GPU.cu FDTD_common FDTD_CPU OPTIONS --compiler-bindir mpicxx)
+#cuda_add_executable(fdtd_gpu test FDTD_GPU.cu FDTD_common FDTD_CPU OPTIONS -DCUDA)
     target_link_libraries(fdtd_gpu undvc_common asynchronous_algorithms synchronous_algorithms tao_util mpi_algorithms)
     set_target_properties(fdtd_gpu PROPERTIES COMPILE_DEFINITIONS CUDA)
 endif (CUDA_FOUND)

@@ -182,7 +182,7 @@ void calculate_JandM(float* f,int* timestep,float*dev_Ez,float*dev_Hy,float*dev_
                 Ez = (dev_Ez[getCell(x,y,nx+1)]+dev_Ez[getCell(x,y+1,nx+1)])/2;
                 float Hx=dev_Hx[getCell(x,y,nx)];
 
-                cjzyn[index] += Hx*(float)dt*cuexp((float)(-1)*j*(float)2.0*(float)PI*freq*(float)(*timestep)*(float)dt);	//cjzyn and cmxyn need to have nx-2*NF2FFbound-2 elements
+                cjzyn[index] += Hx*(float)dt*cuexp((float)(-1)*j*(float)2.0*(float)PI*freq*(float)(*timestep)*(float)dt);    //cjzyn and cmxyn need to have nx-2*NF2FFbound-2 elements
                 cmxyn[index] += Ez*(float)dt*cuexp((float)(-1)*j*(float)2.0*(float)PI*freq*((float)(*timestep)+0.5)*(float)dt);
             }
             else if(cpu_isOnxn(x))
