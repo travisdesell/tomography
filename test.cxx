@@ -19,6 +19,7 @@
 
 #include "asynchronous_algorithms/particle_swarm.hxx"
 #include "mpi/mpi_particle_swarm.hxx"
+#include "mpi/mpi_differential_evolution.hxx"
 #include "asynchronous_algorithms/differential_evolution.hxx"
 #include "asynchronous_algorithms/asynchronous_newton_method.hxx"
 
@@ -98,9 +99,11 @@ int main(int argc, char **argv) {
 #endif
 
     } else if (search_type.compare("de") == 0) {
-        DifferentialEvolution de(min_bound, max_bound, arguments);
+        DifferentialEvolutionMPI de(min_bound, max_bound, arguments);
 #ifdef CUDA
-        de.iterate(FDTD_GPU);
+        int device_assignments[] = {-1, 0, 1, 0, 1, 0, 1, 0, 1};
+
+        de.go(FDTD_CPU, FDTD_GPU, device_assignments);
 #else
         de.iterate(FDTD_CPU);
 #endif
