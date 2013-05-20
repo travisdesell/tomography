@@ -1,6 +1,5 @@
 #ifndef FDTD_COMMON_H
 #define FDTD_COMMON_H
-#define GL_GLEXT_PROTOTYPES
 #define PI 3.141592653589793238
 #define alpha_max 0.01
 #define alpha_min 0.000
@@ -17,7 +16,7 @@
 #define NF2FFdistfromboundary ((int)floor((3.2*breast_radius/dx)))
 #define source_position 0.5
 #define dy (0.001)
-#define number_of_time_steps 3000
+#define number_of_time_steps 5000
 #define f1x (nx/2 - 150)       
 #define f2x (nx/2+150) 
 #define f1y (ny/2)
@@ -32,7 +31,6 @@
 #define numberofexcitationangles 4
 #define isPW 1
 #define isscattering 1
-#define HANDLE_ERROR( err ) err
 #define sigma_max_pml (3/(200*PI*dx))
 #define size_NF2FF_total (2*nx-8*NF2FFdistfromboundary+2*ny-4)
 #define startfrequency (1e9)
@@ -57,7 +55,9 @@
 #define source_y (ny/2)
 #define breast_radius 0.0315 //87.535 mm  .  Sample size = 1.
 #define tumor_size (0.01)
-
+#define relaxation_time (7e-12)
+#define Kp ((1-dt/(2*relaxation_time))/(1+dt/(2*relaxation_time))) // Parameter for (FD)2TD.  Using Polarization current formulation
+#define numpatches 3
 /**
  * I made getCell a macro which should speed things up 
  * a bit, and make the code simpler
@@ -134,7 +134,9 @@ float fitness(float* D,int max_index, float* measurement);
 #define source_y (ny/2)
 #define breast_radius 0.0315 //87.535 mm  .  Sample size = 1.
 #define tumor_size (0.01)
-
+#define relaxation_time (7e-12)
+#define Kp ((1-dt/(2*relaxation_time))/(1+dt/(2*relaxation_time))) // Parameter for (FD)2TD.  Using Polarization current formulation
+#define numpatches 3
 /**
  * I made getCell a macro which should speed things up 
  * a bit, and make the code simpler

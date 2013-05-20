@@ -12,7 +12,6 @@
 #include <cfloat>
 #include <string>
 #include <stdint.h>
-
 #include "mpi.h"
 
 #include "examples/benchmarks.hxx"
@@ -22,7 +21,7 @@
 #include "mpi/mpi_differential_evolution.hxx"
 #include "asynchronous_algorithms/differential_evolution.hxx"
 #include "asynchronous_algorithms/asynchronous_newton_method.hxx"
-
+#define numpatches 3
 //from undvc_common
 #include "undvc_common/arguments.hxx"
 
@@ -53,22 +52,27 @@ int main(int argc, char **argv) {
     cout << "took " << (time(NULL) - start_time) << " seconds" << endl;
     */
 
-    uint32_t number_of_parameters = 162;
+    uint32_t number_of_parameters = numpatches*numpatches*3;
     vector<double> min_bound(number_of_parameters, 0);
     vector<double> max_bound(number_of_parameters, 0);
     vector<double> radius(number_of_parameters, 0);
 
     for (uint32_t i = 0; i < number_of_parameters; i++) {        //arrays go from 0 to size - 1 (not 1 to size)
         
-        if (i < 81) {
+        if (i < numpatches*numpatches) {
             radius[i] = 1;
             min_bound[i] = 1.0;
-            max_bound[i] = 40.0;
-        } else {
+            max_bound[i] = 7.82;//eps_infinity
+        } else if(i<numpatches*numpatches*2) {
             radius[i] = 0.05;
             min_bound[i] = 0.0;
-            max_bound[i] = 1.1;
+            max_bound[i] = 40;// del_eps
+        } else if(i<numpatches*numpatches*3){
+            radius[i] = 1;
+            min_bound[i] = 0;
+            max_bound[i] = 1.1;// sigma_e_z
         }
+        
     }
 
     string search_type;
