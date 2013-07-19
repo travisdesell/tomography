@@ -61,16 +61,17 @@ int main(int argc, char **argv) {
         
         if (i < numpatches*numpatches) {
             radius[i] = 1;
-            min_bound[i] = 1.0;
-            max_bound[i] = 7.82;//eps_infinity
+            min_bound[i] = 1.00;
+            max_bound[i] = 7;//eps_infinity
         } else if(i<numpatches*numpatches*2) {
             radius[i] = 0.05;
-            min_bound[i] = 0.0;
-            max_bound[i] = 40;// del_eps
+            min_bound[i] = 1.5;
+            max_bound[i] = 41;// del_eps
+
         } else if(i<numpatches*numpatches*3){
             radius[i] = 1;
-            min_bound[i] = 0;
-            max_bound[i] = 1.1;// sigma_e_z
+            min_bound[i] = 0.0;
+            max_bound[i] = 0.0;// sigma_e_z
         }
         
     }

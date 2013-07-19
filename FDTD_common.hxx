@@ -16,7 +16,7 @@
 #define NF2FFdistfromboundary ((int)floor((3.2*breast_radius/dx)))
 #define source_position 0.5
 #define dy (0.001)
-#define number_of_time_steps 5000
+#define number_of_time_steps 2000
 #define f1x (nx/2 - 150)       
 #define f2x (nx/2+150) 
 #define f1y (ny/2)
@@ -94,7 +94,7 @@ float fitness(float* D,int max_index, float* measurement);
 #define NF2FFdistfromboundary ((int)floor((3.2*breast_radius/dx)))
 #define source_position 0.5
 #define dy (0.001)
-#define number_of_time_steps 3000
+#define number_of_time_steps 2000
 #define f1x (nx/2 - 150)       
 #define f2x (nx/2+150) 
 #define f1y (ny/2)
